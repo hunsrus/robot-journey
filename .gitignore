@@ -30,3 +30,15 @@
 *.exe
 *.out
 *.app
+
+# Build folders
+build/*
+
+# cached files?
+.cache/*
+
+# 3d models .zip files
+#src/mod/*
+
+# vscode
+.vscode
