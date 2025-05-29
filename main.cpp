@@ -70,19 +70,19 @@ Trajectory interpolateCircularSegment(
     const Point& end,
     Vector3 center,
     int numPoints = 5,
-    float radius = 0.0f
+    double radius = 0.0
 ) {
     Trajectory trajectory;
-    const double epsilon = 1e-9;
+    const double epsilon = 5e-7;
     Point auxPoint;
 
     // Calcular nuevo centro si se especifica radio
-    if (radius != 0.0f) {
+    if (radius != 0.0) {
         Vector3 V = Vector3Subtract(end.position, start.position);
         double d = Vector3Length(V);
         Vector3 M = Vector3Scale(Vector3Add(start.position, end.position), 0.5f);
         
-        if (d > 2 * radius) {
+        if (d > 2.0 * abs(radius)) {
             // Radio inválido, interpolar linealmente
             for (int i = 0; i < numPoints; ++i) {
                 double t = static_cast<double>(i) / (numPoints - 1);
@@ -138,6 +138,7 @@ Trajectory interpolateCircularSegment(
             p.position = Vector3Add(start.position, p.position);
             trajectory.points.push_back(p);
         }
+        std::cout << "diferencia máxima entre radios excedida: " << r1-r2 << std::endl;
         return trajectory;
     }
 
@@ -163,6 +164,7 @@ Trajectory interpolateCircularSegment(
     double cos_theta = Vector3DotProduct(v1, v2) / (r1 * r2);
     double sin_theta = axis_len / (r1 * r2);
     double theta = std::atan2(sin_theta, cos_theta);
+    if(radius < 0.0) theta -= 360*DEG2RAD;
 
     // Generar puntos interpolados
     for (int i = 0; i < numPoints; ++i) {
@@ -186,8 +188,8 @@ Trajectory interpolateCircularSegment(
 
 int main() {
     // Initialize the window
-    const int screenWidth = 128;
-    const int screenHeight = 128;
+    const int screenWidth = 480;
+    const int screenHeight = 480;
     InitWindow(screenWidth, screenHeight, "robot journey");
 
     // Set the target FPS
@@ -214,23 +216,29 @@ int main() {
 
     Vector3 offset = {0.0f, 1.0f, 0.0f};
     Point auxPoint;
+    double radius = 0.0;
 
+    offset = {0.0f, 0.5f, 0.0f};
     auxPoint = outfeederA;
     auxPoint.position = Vector3Add(auxPoint.position, offset);
+    radius = (Vector3Distance(auxPoint.position,infeederB.position)*0.5+0.001f);
     Trajectory trajectoryOAIA = interpolateCircularSegment(
         auxPoint,
         infeederA,
-        Vector3Zero(),
-        5
+        (Vector3){0.0f,(auxPoint.position.y+infeederA.position.y)/2.0f,0.0f},
+        5,
+        radius
     );
 
-    float radius = 1.0f;
+    offset = {0.0f, 1.5f, 0.0f};
     auxPoint = outfeederB;
     auxPoint.position = Vector3Add(auxPoint.position, offset);
+    radius = -(Vector3Distance(auxPoint.position,infeederB.position)*0.5+0.001f);
+    std::cout << "radius: " << radius << std::endl;
     Trajectory trajectoryOBIB = interpolateCircularSegment(
         auxPoint,
         infeederB,
-        (Vector3){-100.0f, 0.0f, -100.0f},
+        (Vector3){0.0f,(auxPoint.position.y+infeederB.position.y)/2.0f,0.0f},
         5,
         radius
     );
@@ -241,24 +249,28 @@ int main() {
         UpdateCamera(&camera);
 
         if(IsKeyDown(KEY_UP)) {
-            radius += 0.1f;
+            radius += 0.01;
+            offset = {0.0f, 1.5f, 0.0f};
             auxPoint = outfeederB;
             auxPoint.position = Vector3Add(auxPoint.position, offset);
             trajectoryOBIB = interpolateCircularSegment(
                 auxPoint,
                 infeederB,
-                (Vector3){radius, 0.0f, 0.0f},
-                5
+                (Vector3){0.0f,(auxPoint.position.y+infeederB.position.y)/2.0f,0.0f},
+                5,
+                radius
             );
         }else if (IsKeyDown(KEY_DOWN)) {
-            radius -= 0.1f;
+            radius -= 0.01;
+            offset = {0.0f, 1.5f, 0.0f};
             auxPoint = outfeederB;
             auxPoint.position = Vector3Add(auxPoint.position, offset);
             trajectoryOBIB = interpolateCircularSegment(
                 auxPoint,
                 infeederB,
-                (Vector3){radius, 0.0f, 0.0f},
-                5
+                (Vector3){0.0f,(auxPoint.position.y+infeederB.position.y)/2.0f,0.0f},
+                5,
+                radius
             );
         }
         
@@ -285,7 +297,7 @@ int main() {
         EndMode3D();
 
         std::string radiusText = "Radius: " + std::to_string(radius);
-        DrawText(radiusText.c_str(), 10, 10, 20, DARKGRAY);
+        DrawText(radiusText.c_str(), 10, 10, 8, DARKGRAY);
 
         // End drawing
         EndDrawing();
