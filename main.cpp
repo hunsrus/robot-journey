@@ -17,6 +17,9 @@
     #define GLSL_VERSION            100
 #endif
 
+#define FLT_MAX     340282346638528859811704183484516925440.0f     // Maximum value of a float, from bit pattern 01111111011111111111111111111111
+#define COORD_PRECISION 3
+
 static bool DRAW_ZONES = true;
 static bool DRAW_WIRED = true;
 static bool DRAW_TRAJECTORIES = true;
@@ -252,22 +255,8 @@ int main() {
     // Create a RenderTexture2D to be used for render to texture
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
 
-    // Vector3 zona5max = {550,725,2100};
-    // Vector3 zona5min = {-350,-1600,1200};
-    // Vector3 zona6max = {2500,500,1900};
-    // Vector3 zona6min = {1200,-1850,600};
-    // Vector3 zona7max = {-1800,1000,1000};
-    // Vector3 zona7min = {-1300,700,600};
-    // Vector3 zona8max = {2500,500,100};
-    // Vector3 zona8min = {1200,-1850,-1100};
-    // Vector3 zona9max = {290,500,-1800};
-    // Vector3 zona9min = {265,-1850,-2020};
-    // Vector3 zona10max = {-980,500,-2050};
-    // Vector3 zona10min = {-990,-1600,-2075};
-    // Vector3 zona11max = {420,0,1950};
-    // Vector3 zona11min = {200,-550,1700};
-    // Vector3 zona12max = {2000,600,-600};
-    // Vector3 zona12min = {-500,100,-2000};
+    float coordScale = 1.0f/1000.0f;
+
     Vector3 zona5max = {1200,1000,2100};
     Vector3 zona5min = {-350,-1600,1200};
     Vector3 zona6max = {2500,1000,1900};
@@ -294,22 +283,22 @@ int main() {
     Color zona11Color = YELLOW;
     Color zona12Color = BLACK;
 
-    zona5max = Vector3Scale(zona5max,0.001);
-    zona5min = Vector3Scale(zona5min,0.001);
-    zona6max = Vector3Scale(zona6max,0.001);
-    zona6min = Vector3Scale(zona6min,0.001);
-    zona7max = Vector3Scale(zona7max,0.001);
-    zona7min = Vector3Scale(zona7min,0.001);
-    zona8max = Vector3Scale(zona8max,0.001);
-    zona8min = Vector3Scale(zona8min,0.001);
-    zona9max = Vector3Scale(zona9max,0.001);
-    zona9min = Vector3Scale(zona9min,0.001);
-    zona10max = Vector3Scale(zona10max,0.001);
-    zona10min = Vector3Scale(zona10min,0.001);
-    zona11max = Vector3Scale(zona11max,0.001);
-    zona11min = Vector3Scale(zona11min,0.001);
-    zona12max = Vector3Scale(zona12max,0.001);
-    zona12min = Vector3Scale(zona12min,0.001);
+    zona5max = Vector3Scale(zona5max,coordScale);
+    zona5min = Vector3Scale(zona5min,coordScale);
+    zona6max = Vector3Scale(zona6max,coordScale);
+    zona6min = Vector3Scale(zona6min,coordScale);
+    zona7max = Vector3Scale(zona7max,coordScale);
+    zona7min = Vector3Scale(zona7min,coordScale);
+    zona8max = Vector3Scale(zona8max,coordScale);
+    zona8min = Vector3Scale(zona8min,coordScale);
+    zona9max = Vector3Scale(zona9max,coordScale);
+    zona9min = Vector3Scale(zona9min,coordScale);
+    zona10max = Vector3Scale(zona10max,coordScale);
+    zona10min = Vector3Scale(zona10min,coordScale);
+    zona11max = Vector3Scale(zona11max,coordScale);
+    zona11min = Vector3Scale(zona11min,coordScale);
+    zona12max = Vector3Scale(zona12max,coordScale);
+    zona12min = Vector3Scale(zona12min,coordScale);
 
     float auxCoord;
     
@@ -367,18 +356,19 @@ int main() {
     Point outfeederB = { {1749.0f, -1474.0f, -536.0f}, {0.0f, 90.0f, 0.0f} };
 
     outfeederA.position.x *= -1.0f;
-    outfeederA.position = Vector3Scale(outfeederA.position, 0.001f);
+    outfeederA.position = Vector3Scale(outfeederA.position, coordScale);
     outfeederB.position.x *= -1.0f;
-    outfeederB.position = Vector3Scale(outfeederB.position, 0.001f);
+    outfeederB.position = Vector3Scale(outfeederB.position, coordScale);
     infeederA.position.x *= -1.0f;
-    infeederA.position = Vector3Scale(infeederA.position, 0.001f);
+    infeederA.position = Vector3Scale(infeederA.position, coordScale);
     infeederB.position.x *= -1.0f;
-    infeederB.position = Vector3Scale(infeederB.position, 0.001f);
+    infeederB.position = Vector3Scale(infeederB.position, coordScale);
 
     Vector3 offset = {0.0f, 1.0f, 0.0f};
     Point auxPoint;
     double radius = 0.0;
     int pointsNum = 5;
+    int pointCount = 0;
 
     offset = {0.0f, 0.5f, 0.0f};
     auxPoint = outfeederA;
@@ -500,19 +490,56 @@ int main() {
         if(IsKeyPressed(KEY_W)) DRAW_WIRED = !DRAW_WIRED;
         if(IsKeyPressed(KEY_TAB)) DRAW_TRAJECTORIES = !DRAW_TRAJECTORIES;
 
-        // if(IsKeyDown(KEY_A))
-        // {
-        //     cameraAngle -= 0.001;
-        //     camera.position.x = cos(cameraAngle);
-        //     camera.position.z = sin(cameraAngle);
-        // }
+        if(IsKeyPressed(KEY_E)) {
+            std::ofstream output_file("dat/100-TRAYECTORIA.JBI");
+    
+            if (!output_file.is_open()) {
+                std::cerr << "Error al abrir archivo para escritura: " << "dat/TRAYECTORIA.JBI" << std::endl;
+                return EXIT_FAILURE;
+            }
 
-        // if(IsKeyDown(KEY_D))
-        // {
-        //     cameraAngle += 0.001;
-        //     camera.position.x = cos(cameraAngle);
-        //     camera.position.z = sin(cameraAngle);
-        // }
+            output_file <<  "/JOB" << "\n"
+                            "//NAME 100-TRAYECTORIA" << "\n"
+                            "///FOLDERNAME TRAYECTORIAS" << "\n"
+                            "//POS" << "\n"
+                            "///NPOS 0,0,0,46,0,0" << "\n"
+                            "///TOOL 1" << "\n"
+                            "///POSTYPE ROBOT" << "\n"
+                            "///RECTAN" << "\n"
+                            "///RCONF 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" << "\n";
+            
+            pointCount = 200;
+            for (const auto& point : trajectoryOBIB.points) {
+                output_file << std::fixed << std::setprecision(COORD_PRECISION)
+                            <<  "P" << pointCount << "="
+                            << -point.position.x/coordScale << "," << point.position.z/coordScale << "," << point.position.y/coordScale << ","
+                            << point.rotation.x << "," << point.rotation.y << "," << point.rotation.z << "\n";
+                pointCount++;
+            }
+
+            output_file <<  "//INST" << "\n"
+                            "///DATE 2000/01/18 10:00" << "\n"
+                            "///ATTR SC,RW" << "\n"
+                            "///GROUP1 RB1" << "\n"
+                            "///LVARS 1,1,10,0,0,1,0,0" << "\n"
+                            "NOP" << "\n"
+                            "SET I003 10000" << "\n"
+                            "SET I004 30000" << "\n"
+                            "SET I005 359" << "\n"
+                            "SPEED VJ=I003 V=I004 VR=I005" << "\n";
+
+            pointCount = 200;
+            for (const auto& point : trajectoryOBIB.points) {
+                output_file << "MOVJ P" << pointCount << "\n";
+                pointCount++;
+            }
+
+            output_file <<  "END" << "\n" << "";
+
+            output_file.close();
+        }
+
+        
         
 
         BeginTextureMode(target);

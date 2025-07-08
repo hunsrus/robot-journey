@@ -46,4 +46,7 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E copy_directory
           ${CMAKE_CURRENT_SOURCE_DIR}/src
           ${CMAKE_CURRENT_BINARY_DIR}/src
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+          ${CMAKE_CURRENT_SOURCE_DIR}/dat
+          ${CMAKE_CURRENT_BINARY_DIR}/dat
 )
