@@ -4,6 +4,8 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
 #include <vector>
 
 #include "YMConnect.h" // Include the YMConnect header file
@@ -20,15 +22,22 @@
 #define FLT_MAX     340282346638528859811704183484516925440.0f     // Maximum value of a float, from bit pattern 01111111011111111111111111111111
 #define COORD_PRECISION 3
 
-static bool DRAW_ZONES = true;
-static bool DRAW_WIRED = true;
-static bool DRAW_TRAJECTORIES = true;
+static bool DRAW_ZONES = false;
+static bool DRAW_WIRED = false;
+static bool DRAW_TRAJECTORIES = false;
+
+static Color COLOR_FG = {102,155,188,255};
+static Color COLOR_BG = {253,240,213,255};
+static Color COLOR_HL = {0,48,73,255};
+static Color COLOR_HL2 = {193,18,31,255};
 
 Shader initShader(void);
 
 typedef struct Point {
     Vector3 position;
     Vector3 rotation;
+    Vector3 offset = Vector3Zero();
+    Color color = RED;
 } Point;
 
 typedef struct Trajectory {
@@ -232,25 +241,26 @@ int main() {
     float cameraAngle = 0.0f;
 
     // SetCameraMode(camera, CAMERA_THIRD_PERSON);
-	SetCameraMode(camera, CAMERA_ORBITAL);
+	// SetCameraMode(camera, CAMERA_ORBITAL);
     //  SetCameraMode(camera, CAMERA_CUSTOM);
-    //  SetCameraMode(camera, CAMERA_FREE);
+     SetCameraMode(camera, CAMERA_FREE);
 
     float modelScale = 1.0f;
-    Model* robotModel = new Model(LoadModel(std::string("src/mod/gp180/GP180.obj").c_str()));
-    robotModel->transform = MatrixScale(1.0f/1000,1.0f/1000,1.0f/1000);
+    Model* robotModel = new Model(LoadModel(std::string("src/mod/PL190_PL320 ROBOT/PL190_PL320 ROBOT.obj").c_str()));
+    robotModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
     Model* palletModel = new Model(LoadModel(std::string("src/mod/pallet/pallet1000x1200.obj").c_str()));
     palletModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
 
     robotModel->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
     robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].color = WHITE;
+    robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].value = 1.0f;
     robotModel->materials[0].maps[MATERIAL_MAP_SPECULAR].color = WHITE;
     robotModel->materials[0].shader = shader;
     palletModel->materials[0].shader = shader;
 
     Light lights[MAX_LIGHTS] = { 0 };
-    lights[0] = CreateLight(LIGHT_POINT, (Vector3){ 4, 4, 4 }, Vector3Zero(), WHITE, shader);
-    lights[0].position = (Vector3){4.0f, 4.0f, 4.0f};
+    lights[0] = CreateLight(LIGHT_POINT, (Vector3){ 100, 100, 100 }, Vector3Zero(), WHITE, shader);
+    lights[0].position = (Vector3){100.0f, 100.0f, 100.0f};
 
     // Create a RenderTexture2D to be used for render to texture
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
@@ -394,7 +404,9 @@ int main() {
         pointsNum,
         radius
     );
-    
+
+    // selección de puntos
+    Ray ray = { 0 };        // Picking ray
 
     // Main loop
     while (!WindowShouldClose()) {
@@ -466,14 +478,14 @@ int main() {
         if(IsKeyPressed(KEY_T)){
             if(zona5Color.a == 255)
             {
-                zona5Color.a = 128;
-                zona6Color.a = 128;
-                zona7Color.a = 128;
-                zona8Color.a = 128;
-                zona9Color.a = 128;
-                zona10Color.a = 128;
-                zona11Color.a = 128;
-                zona12Color.a = 128;
+                zona5Color.a = 100;
+                zona6Color.a = 100;
+                zona7Color.a = 100;
+                zona8Color.a = 100;
+                zona9Color.a = 100;
+                zona10Color.a = 100;
+                zona11Color.a = 100;
+                zona12Color.a = 100;
             }else{
                 zona5Color.a = 255;
                 zona6Color.a = 255;
@@ -539,29 +551,60 @@ int main() {
             output_file.close();
         }
 
-        
+         // Display information about closest hit
+        RayCollision collision = { 0 };
+        collision.distance = FLT_MAX;
+        collision.hit = false;
+
+        // Get ray and test against objects
+        // ray = GetScreenToWorldRay(GetMousePosition(), camera);
+        ray = GetMouseRay(GetMousePosition(), camera);
+
+        for (auto& point : trajectoryOBIB.points) {
+            // Check ray collision against points
+            RayCollision sphereHitInfo = GetRayCollisionSphere(ray, point.position, 0.1f);
+            if ((sphereHitInfo.hit) && (sphereHitInfo.distance < collision.distance))
+            {
+                collision = sphereHitInfo;
+                point.color = COLOR_HL;
+            }else{
+                point.color = COLOR_HL2;
+            }
+        }
+
+        for (auto& point : trajectoryOAIA.points) {
+            // Check ray collision against points
+            RayCollision sphereHitInfo = GetRayCollisionSphere(ray, point.position, 0.1f);
+            if ((sphereHitInfo.hit) && (sphereHitInfo.distance < collision.distance))
+            {
+                collision = sphereHitInfo;
+                point.color = COLOR_HL;
+            }else{
+                point.color = COLOR_HL2;
+            }
+        }
         
 
         BeginTextureMode(target);
-            ClearBackground(RAYWHITE);
+            ClearBackground(COLOR_BG);
             BeginMode3D(camera);
                 DrawGrid(10, 1.0f);
                 if(DRAW_TRAJECTORIES)
                 {
                     BeginShaderMode(shader);
-                        DrawModel(*robotModel, Vector3Zero(), modelScale, BLUE);
+                        DrawModel(*robotModel, Vector3Zero(), modelScale, WHITE);
                         DrawModel(*palletModel, outfeederA.position, modelScale, WHITE);
                         DrawModel(*palletModel, outfeederB.position, modelScale, WHITE);
                     EndShaderMode();
                     for (const auto& point : trajectoryOAIA.points) {
-                        DrawSphere(point.position, 0.05f, RED);
+                        DrawSphere(point.position, 0.05f, point.color);
                         if(&point != &trajectoryOAIA.points.back())
-                            DrawLine3D(point.position, trajectoryOAIA.points[&point - &trajectoryOAIA.points[0] + 1].position, GREEN);
+                            DrawLine3D(point.position, trajectoryOAIA.points[&point - &trajectoryOAIA.points[0] + 1].position, COLOR_HL2);
                     }
                     for (const auto& point : trajectoryOBIB.points) {
-                        DrawSphere(point.position, 0.05f, RED);
+                        DrawSphere(point.position, 0.05f, point.color);
                         if(&point != &trajectoryOBIB.points.back())
-                            DrawLine3D(point.position, trajectoryOBIB.points[&point - &trajectoryOBIB.points[0] + 1].position, GREEN);
+                            DrawLine3D(point.position, trajectoryOBIB.points[&point - &trajectoryOBIB.points[0] + 1].position, COLOR_HL2);
                     }
                 }
                 if(DRAW_ZONES)
@@ -609,6 +652,8 @@ int main() {
                 DrawTextEx(font, "Zona 10: Casetero Cartón", (Vector2){10, 10+fontSize*5}, fontSize, 1, zona10Color);
                 DrawTextEx(font, "Zona 11: Zona Inicio", (Vector2){10, 10+fontSize*6}, fontSize, 1, zona11Color);
                 DrawTextEx(font, "Zona 12: Zona Aerea Casetero", (Vector2){10, 10+fontSize*7}, fontSize, 1, zona12Color);
+            }else{
+                // DrawTextEx(font, TextFormat("Hit Object: %s", hitObjectName), (Vector2){10, 10}, fontSize, 1, DARKGRAY);
             }
 
         // End drawing
