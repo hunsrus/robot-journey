@@ -19,7 +19,7 @@
     #define GLSL_VERSION            100
 #endif
 
-#define FLT_MAX     340282346638528859811704183484516925440.0f     // Maximum value of a float, from bit pattern 01111111011111111111111111111111
+#define FLT_MAX 340282346638528859811704183484516925440.0f     // Maximum value of a float, from bit pattern 01111111011111111111111111111111
 #define COORD_PRECISION 3
 
 static bool DRAW_ZONES = false;
@@ -37,7 +37,7 @@ typedef struct Point {
     Vector3 position;
     Vector3 rotation;
     Vector3 offset = Vector3Zero();
-    Color color = RED;
+    bool selected = false;
 } Point;
 
 typedef struct Trajectory {
@@ -220,8 +220,8 @@ Trajectory interpolateCircularSegment(
 
 int main() {
     // Initialize the window
-    const int screenWidth = 400;
-    const int screenHeight = 400;
+    const int screenWidth = 800;
+    const int screenHeight = 600;
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "aeea");
@@ -253,7 +253,7 @@ int main() {
 
     robotModel->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
     robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].color = WHITE;
-    robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].value = 1.0f;
+    robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].value = 0.0f;
     robotModel->materials[0].maps[MATERIAL_MAP_SPECULAR].color = WHITE;
     robotModel->materials[0].shader = shader;
     palletModel->materials[0].shader = shader;
@@ -533,7 +533,7 @@ int main() {
                             "///DATE 2000/01/18 10:00" << "\n"
                             "///ATTR SC,RW" << "\n"
                             "///GROUP1 RB1" << "\n"
-                            "///LVARS 1,1,10,0,0,1,0,0" << "\n"
+                            "///LVARS 0,0,0,0,0,0,0,0" << "\n"
                             "NOP" << "\n"
                             "SET I003 10000" << "\n"
                             "SET I004 30000" << "\n"
@@ -557,7 +557,6 @@ int main() {
         collision.hit = false;
 
         // Get ray and test against objects
-        // ray = GetScreenToWorldRay(GetMousePosition(), camera);
         ray = GetMouseRay(GetMousePosition(), camera);
 
         for (auto& point : trajectoryOBIB.points) {
@@ -566,9 +565,9 @@ int main() {
             if ((sphereHitInfo.hit) && (sphereHitInfo.distance < collision.distance))
             {
                 collision = sphereHitInfo;
-                point.color = COLOR_HL;
+                point.selected = true;
             }else{
-                point.color = COLOR_HL2;
+                point.selected = false;
             }
         }
 
@@ -578,9 +577,9 @@ int main() {
             if ((sphereHitInfo.hit) && (sphereHitInfo.distance < collision.distance))
             {
                 collision = sphereHitInfo;
-                point.color = COLOR_HL;
+                point.selected = true;
             }else{
-                point.color = COLOR_HL2;
+                point.selected = false;
             }
         }
         
@@ -597,12 +596,18 @@ int main() {
                         DrawModel(*palletModel, outfeederB.position, modelScale, WHITE);
                     EndShaderMode();
                     for (const auto& point : trajectoryOAIA.points) {
-                        DrawSphere(point.position, 0.05f, point.color);
+                        if(point.selected)
+                            DrawSphere(point.position, 0.1f, COLOR_HL);
+                        else
+                            DrawSphere(point.position, 0.05f, COLOR_HL2);
                         if(&point != &trajectoryOAIA.points.back())
                             DrawLine3D(point.position, trajectoryOAIA.points[&point - &trajectoryOAIA.points[0] + 1].position, COLOR_HL2);
                     }
                     for (const auto& point : trajectoryOBIB.points) {
-                        DrawSphere(point.position, 0.05f, point.color);
+                        if(point.selected)
+                            DrawSphere(point.position, 0.1f, COLOR_HL);
+                        else
+                            DrawSphere(point.position, 0.05f, COLOR_HL2);
                         if(&point != &trajectoryOBIB.points.back())
                             DrawLine3D(point.position, trajectoryOBIB.points[&point - &trajectoryOBIB.points[0] + 1].position, COLOR_HL2);
                     }
