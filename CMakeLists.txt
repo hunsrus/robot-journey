@@ -5,6 +5,7 @@ project(robot-journey)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #set(GRAPHICS GRAPHICS_API_OPENGL_21)
 SET(CMAKE_CXX_FLAGS  "-g")
+set(CMAKE_CXX_STANDARD 17) #YMConnect requires C++17.
 
 # Dependencies
 find_package(raylib 4.0.0 QUIET) # QUIET or REQUIRED
@@ -23,6 +24,9 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   endif()
 endif()
 
+add_library(YMConnect SHARED IMPORTED)#Import the YMConnect library into the project.
+set_property(TARGET YMConnect PROPERTY IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/libYMConnect_D.so") #Set the location of the YMConnect library.
+
 # Our Project
 
 file(GLOB SOURCES
@@ -35,7 +39,7 @@ ${SOURCES}
 )
 
 
-target_link_libraries(${PROJECT_NAME} raylib)
+target_link_libraries(${PROJECT_NAME} raylib YMConnect)
 
 add_custom_command(
   TARGET robot-journey POST_BUILD
