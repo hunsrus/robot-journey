@@ -17,6 +17,7 @@
     #define GLSL_VERSION            100
 #endif
 
+static bool DRAW_ZONES = true;
 static bool DRAW_WIRED = true;
 static bool DRAW_TRAJECTORIES = true;
 
@@ -207,11 +208,15 @@ Trajectory interpolateCircularSegment(
 
 int main() {
     // Initialize the window
-    const int screenWidth = 600;
-    const int screenHeight = 600;
+    const int screenWidth = 400;
+    const int screenHeight = 400;
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "aeea");
+
+    float fontSize = 24*screenHeight/600;
+    Font font = LoadFontEx("src/fonts/JetBrainsMono/JetBrainsMono-Bold.ttf", fontSize, 0, 250);
+    // float fontSize = font.baseSize;//DISPLAY_HEIGHT/20;
 
     Shader shader = initShader();
 
@@ -246,41 +251,6 @@ int main() {
 
     // Create a RenderTexture2D to be used for render to texture
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
-
-    Point infeederA = { {2.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
-    Point outfeederA = { {0.0f, 0.0f, 2.0f}, {0.0f, 0.0f, 0.0f} };
-    Point infeederB = { {0.0f, 2.0f, -2.0f}, {0.0f, 0.0f, 0.0f} };
-    Point outfeederB = { {-2.0f, 0.0f, 2.0f}, {0.0f, 0.0f, 0.0f} };
-
-    Vector3 offset = {0.0f, 1.0f, 0.0f};
-    Point auxPoint;
-    double radius = 0.0;
-    int pointsNum = 5;
-
-    offset = {0.0f, 0.5f, 0.0f};
-    auxPoint = outfeederA;
-    auxPoint.position = Vector3Add(auxPoint.position, offset);
-    radius = (Vector3Distance(auxPoint.position,infeederB.position)*0.5+0.001f);
-    Trajectory trajectoryOAIA = interpolateCircularSegment(
-        auxPoint,
-        infeederA,
-        (Vector3){0.0f,(auxPoint.position.y+infeederA.position.y)/2.0f,0.0f},
-        pointsNum,
-        radius
-    );
-
-    offset = {0.0f, 1.5f, 0.0f};
-    auxPoint = outfeederB;
-    auxPoint.position = Vector3Add(auxPoint.position, offset);
-    radius = -(Vector3Distance(auxPoint.position,infeederB.position)*0.5+0.001f);
-    std::cout << "radius: " << radius << std::endl;
-    Trajectory trajectoryOBIB = interpolateCircularSegment(
-        auxPoint,
-        infeederB,
-        (Vector3){0.0f,(auxPoint.position.y+infeederB.position.y)/2.0f,0.0f},
-        pointsNum,
-        radius
-    );
 
     // Vector3 zona5max = {550,725,2100};
     // Vector3 zona5min = {-350,-1600,1200};
@@ -323,14 +293,6 @@ int main() {
     Color zona10Color = GRAY;
     Color zona11Color = YELLOW;
     Color zona12Color = BLACK;
-
-    // zona5Color.a = 128;
-    // zona6Color.a = 128;
-    // zona7Color.a = 128;
-    // zona8Color.a = 128;
-    // zona9Color.a = 128;
-    // zona10Color.a = 128;
-    // zona11Color.a = 128;
 
     zona5max = Vector3Scale(zona5max,0.001);
     zona5min = Vector3Scale(zona5min,0.001);
@@ -398,6 +360,50 @@ int main() {
     auxCoord = zona12max.x;
     zona12max.x = zona12min.x;
     zona12min.x = auxCoord;
+
+    Point infeederA = { {219.0f, -1309.0f, 1915.0f}, {0.0f, 180.0f, 0.0f} };
+    Point outfeederA = { {1756.0f, -1483.0f, 1235.0f}, {0.0f, 90.0f, 0.0f} };
+    Point infeederB = { {-1397.0f, 903.0f, 882.0f}, {0.0f, 0.0f, 0.0f} };
+    Point outfeederB = { {1749.0f, -1474.0f, -536.0f}, {0.0f, 90.0f, 0.0f} };
+
+    outfeederA.position.x *= -1.0f;
+    outfeederA.position = Vector3Scale(outfeederA.position, 0.001f);
+    outfeederB.position.x *= -1.0f;
+    outfeederB.position = Vector3Scale(outfeederB.position, 0.001f);
+    infeederA.position.x *= -1.0f;
+    infeederA.position = Vector3Scale(infeederA.position, 0.001f);
+    infeederB.position.x *= -1.0f;
+    infeederB.position = Vector3Scale(infeederB.position, 0.001f);
+
+    Vector3 offset = {0.0f, 1.0f, 0.0f};
+    Point auxPoint;
+    double radius = 0.0;
+    int pointsNum = 5;
+
+    offset = {0.0f, 0.5f, 0.0f};
+    auxPoint = outfeederA;
+    auxPoint.position = Vector3Add(auxPoint.position, offset);
+    radius = (Vector3Distance(auxPoint.position,infeederB.position)*0.5+0.001f);
+    Trajectory trajectoryOAIA = interpolateCircularSegment(
+        auxPoint,
+        infeederA,
+        (Vector3){0.0f,(auxPoint.position.y+infeederA.position.y)/2.0f,0.0f},
+        pointsNum,
+        radius
+    );
+
+    offset = {0.0f, 0.5f, 0.0f};
+    auxPoint = outfeederB;
+    auxPoint.position = Vector3Add(auxPoint.position, offset);
+    radius = (Vector3Distance(auxPoint.position,infeederB.position)*0.5+0.001f);
+    std::cout << "radius: " << radius << std::endl;
+    Trajectory trajectoryOBIB = interpolateCircularSegment(
+        auxPoint,
+        infeederB,
+        (Vector3){0.0f,(auxPoint.position.y+infeederB.position.y)/2.0f,0.0f},
+        pointsNum,
+        radius
+    );
     
 
     // Main loop
@@ -417,15 +423,25 @@ int main() {
             if(IsKeyDown(KEY_LEFT_SHIFT)) {
                 pointsNum++;
             }else{
-                radius += 0.01;
+                radius += 0.05;
             }
-            offset = {0.0f, 1.5f, 0.0f};
+            // offset = {0.0f, 1.5f, 0.0f};
             auxPoint = outfeederB;
             auxPoint.position = Vector3Add(auxPoint.position, offset);
             trajectoryOBIB = interpolateCircularSegment(
                 auxPoint,
                 infeederB,
                 (Vector3){0.0f,(auxPoint.position.y+infeederB.position.y)/2.0f,0.0f},
+                pointsNum,
+                radius
+            );
+            // offset = {0.0f, 1.5f, 0.0f};
+            auxPoint = outfeederA;
+            auxPoint.position = Vector3Add(auxPoint.position, offset);
+            trajectoryOAIA = interpolateCircularSegment(
+                auxPoint,
+                infeederA,
+                (Vector3){0.0f,(auxPoint.position.y+infeederA.position.y)/2.0f,0.0f},
                 pointsNum,
                 radius
             );
@@ -433,9 +449,9 @@ int main() {
             if(IsKeyDown(KEY_LEFT_SHIFT)) {
                 pointsNum--;
             }else{
-                radius -= 0.01;
+                radius -= 0.05;
             }
-            offset = {0.0f, 1.5f, 0.0f};
+            // offset = {0.0f, 1.5f, 0.0f};
             auxPoint = outfeederB;
             auxPoint.position = Vector3Add(auxPoint.position, offset);
             trajectoryOBIB = interpolateCircularSegment(
@@ -445,9 +461,43 @@ int main() {
                 pointsNum,
                 radius
             );
+            // offset = {0.0f, 1.5f, 0.0f};
+            auxPoint = outfeederA;
+            auxPoint.position = Vector3Add(auxPoint.position, offset);
+            trajectoryOAIA = interpolateCircularSegment(
+                auxPoint,
+                infeederA,
+                (Vector3){0.0f,(auxPoint.position.y+infeederA.position.y)/2.0f,0.0f},
+                pointsNum,
+                radius
+            );
         }
 
-        if(IsKeyPressed(KEY_SPACE)) DRAW_WIRED = !DRAW_WIRED;
+        if(IsKeyPressed(KEY_T)){
+            if(zona5Color.a == 255)
+            {
+                zona5Color.a = 128;
+                zona6Color.a = 128;
+                zona7Color.a = 128;
+                zona8Color.a = 128;
+                zona9Color.a = 128;
+                zona10Color.a = 128;
+                zona11Color.a = 128;
+                zona12Color.a = 128;
+            }else{
+                zona5Color.a = 255;
+                zona6Color.a = 255;
+                zona7Color.a = 255;
+                zona8Color.a = 255;
+                zona9Color.a = 255;
+                zona10Color.a = 255;
+                zona11Color.a = 255;
+                zona12Color.a = 255;
+            }
+        }
+
+        if(IsKeyPressed(KEY_Z)) DRAW_ZONES = !DRAW_ZONES;
+        if(IsKeyPressed(KEY_W)) DRAW_WIRED = !DRAW_WIRED;
         if(IsKeyPressed(KEY_TAB)) DRAW_TRAJECTORIES = !DRAW_TRAJECTORIES;
 
         // if(IsKeyDown(KEY_A))
@@ -487,25 +537,28 @@ int main() {
                             DrawLine3D(point.position, trajectoryOBIB.points[&point - &trajectoryOBIB.points[0] + 1].position, GREEN);
                     }
                 }
-                if(DRAW_WIRED)
+                if(DRAW_ZONES)
                 {
-                    DrawCubeWiresV(Vector3Add(zona5min,Vector3Scale(Vector3Subtract(zona5max,zona5min),0.5)),Vector3Subtract(zona5max,zona5min),zona5Color);
-                    DrawCubeWiresV(Vector3Add(zona6min,Vector3Scale(Vector3Subtract(zona6max,zona6min),0.5)),Vector3Subtract(zona6max,zona6min),zona6Color);
-                    DrawCubeWiresV(Vector3Add(zona7min,Vector3Scale(Vector3Subtract(zona7max,zona7min),0.5)),Vector3Subtract(zona7max,zona7min),zona7Color);
-                    DrawCubeWiresV(Vector3Add(zona8min,Vector3Scale(Vector3Subtract(zona8max,zona8min),0.5)),Vector3Subtract(zona8max,zona8min),zona8Color);
-                    DrawCubeWiresV(Vector3Add(zona9min,Vector3Scale(Vector3Subtract(zona9max,zona9min),0.5)),Vector3Subtract(zona9max,zona9min),zona9Color);
-                    DrawCubeWiresV(Vector3Add(zona10min,Vector3Scale(Vector3Subtract(zona10max,zona10min),0.5)),Vector3Subtract(zona10max,zona10min),zona10Color);
-                    DrawCubeWiresV(Vector3Add(zona11min,Vector3Scale(Vector3Subtract(zona11max,zona11min),0.5)),Vector3Subtract(zona11max,zona11min),zona11Color);
-                    DrawCubeWiresV(Vector3Add(zona12min,Vector3Scale(Vector3Subtract(zona12max,zona12min),0.5)),Vector3Subtract(zona12max,zona12min),zona12Color);
-                }else{
-                    // DrawCubeV(Vector3Add(zona5min,Vector3Scale(Vector3Subtract(zona5max,zona5min),0.5)),Vector3Subtract(zona5max,zona5min),zona5Color);
-                    // DrawCubeV(Vector3Add(zona6min,Vector3Scale(Vector3Subtract(zona6max,zona6min),0.5)),Vector3Subtract(zona6max,zona6min),zona6Color);
-                    // DrawCubeV(Vector3Add(zona7min,Vector3Scale(Vector3Subtract(zona7max,zona7min),0.5)),Vector3Subtract(zona7max,zona7min),zona7Color);
-                    // DrawCubeV(Vector3Add(zona8min,Vector3Scale(Vector3Subtract(zona8max,zona8min),0.5)),Vector3Subtract(zona8max,zona8min),zona8Color);
-                    // DrawCubeV(Vector3Add(zona9min,Vector3Scale(Vector3Subtract(zona9max,zona9min),0.5)),Vector3Subtract(zona9max,zona9min),zona9Color);
-                    // DrawCubeV(Vector3Add(zona10min,Vector3Scale(Vector3Subtract(zona10max,zona10min),0.5)),Vector3Subtract(zona10max,zona10min),zona10Color);
-                    // DrawCubeV(Vector3Add(zona11min,Vector3Scale(Vector3Subtract(zona11max,zona11min),0.5)),Vector3Subtract(zona11max,zona11min),zona11Color);
-                    // DrawCubeV(Vector3Add(zona12min,Vector3Scale(Vector3Subtract(zona12max,zona12min),0.5)),Vector3Subtract(zona12max,zona12min),zona12Color);
+                    if(DRAW_WIRED)
+                    {
+                        DrawCubeWiresV(Vector3Add(zona5min,Vector3Scale(Vector3Subtract(zona5max,zona5min),0.5)),Vector3Subtract(zona5max,zona5min),zona5Color);
+                        DrawCubeWiresV(Vector3Add(zona6min,Vector3Scale(Vector3Subtract(zona6max,zona6min),0.5)),Vector3Subtract(zona6max,zona6min),zona6Color);
+                        DrawCubeWiresV(Vector3Add(zona7min,Vector3Scale(Vector3Subtract(zona7max,zona7min),0.5)),Vector3Subtract(zona7max,zona7min),zona7Color);
+                        DrawCubeWiresV(Vector3Add(zona8min,Vector3Scale(Vector3Subtract(zona8max,zona8min),0.5)),Vector3Subtract(zona8max,zona8min),zona8Color);
+                        DrawCubeWiresV(Vector3Add(zona9min,Vector3Scale(Vector3Subtract(zona9max,zona9min),0.5)),Vector3Subtract(zona9max,zona9min),zona9Color);
+                        DrawCubeWiresV(Vector3Add(zona10min,Vector3Scale(Vector3Subtract(zona10max,zona10min),0.5)),Vector3Subtract(zona10max,zona10min),zona10Color);
+                        DrawCubeWiresV(Vector3Add(zona11min,Vector3Scale(Vector3Subtract(zona11max,zona11min),0.5)),Vector3Subtract(zona11max,zona11min),zona11Color);
+                        DrawCubeWiresV(Vector3Add(zona12min,Vector3Scale(Vector3Subtract(zona12max,zona12min),0.5)),Vector3Subtract(zona12max,zona12min),zona12Color);
+                    }else{
+                        DrawCubeV(Vector3Add(zona5min,Vector3Scale(Vector3Subtract(zona5max,zona5min),0.5)),Vector3Subtract(zona5max,zona5min),zona5Color);
+                        DrawCubeV(Vector3Add(zona6min,Vector3Scale(Vector3Subtract(zona6max,zona6min),0.5)),Vector3Subtract(zona6max,zona6min),zona6Color);
+                        DrawCubeV(Vector3Add(zona7min,Vector3Scale(Vector3Subtract(zona7max,zona7min),0.5)),Vector3Subtract(zona7max,zona7min),zona7Color);
+                        DrawCubeV(Vector3Add(zona8min,Vector3Scale(Vector3Subtract(zona8max,zona8min),0.5)),Vector3Subtract(zona8max,zona8min),zona8Color);
+                        DrawCubeV(Vector3Add(zona9min,Vector3Scale(Vector3Subtract(zona9max,zona9min),0.5)),Vector3Subtract(zona9max,zona9min),zona9Color);
+                        DrawCubeV(Vector3Add(zona10min,Vector3Scale(Vector3Subtract(zona10max,zona10min),0.5)),Vector3Subtract(zona10max,zona10min),zona10Color);
+                        DrawCubeV(Vector3Add(zona11min,Vector3Scale(Vector3Subtract(zona11max,zona11min),0.5)),Vector3Subtract(zona11max,zona11min),zona11Color);
+                        DrawCubeV(Vector3Add(zona12min,Vector3Scale(Vector3Subtract(zona12max,zona12min),0.5)),Vector3Subtract(zona12max,zona12min),zona12Color);
+                    }
                 }
             EndMode3D();
         EndTextureMode();
@@ -519,16 +572,17 @@ int main() {
         
             // std::string radiusText = "Radius: " + std::to_string(radius);
             // DrawText(radiusText.c_str(), 10, 10, 8, DARKGRAY);
-            int fontSize = 20;
-            DrawRectangle(5,5,300,10+fontSize*6+20,(Color{0,0,0,28}));
-            DrawText("Zona 5: Infeeder A", 10, 10, fontSize, zona5Color);
-            DrawText("Zona 6: Outfeeder A", 10, 10+fontSize*1, fontSize, zona6Color);
-            DrawText("Zona 7: Infeeder B", 10, 10+fontSize*2, fontSize, zona7Color);
-            DrawText("Zona 8: Outfeeder B", 10, 10+fontSize*3, fontSize, zona8Color);
-            DrawText("Zona 9: Casetero Pallet", 10, 10+fontSize*4, fontSize, zona9Color);
-            DrawText("Zona 10: Casetero Cartón", 10, 10+fontSize*5, fontSize, zona10Color);
-            DrawText("Zona 11: Zona Inicio", 10, 10+fontSize*6, fontSize, zona11Color);
-            DrawText("Zona 12: Zona Aerea Casetero", 10, 10+fontSize*7, fontSize, zona12Color);
+            if(DRAW_ZONES){
+                DrawRectangle(5,5,300,10+fontSize*7+20,(Color{0,0,0,28}));
+                DrawTextEx(font, "Zona 5: Infeeder A", (Vector2){10, 10}, fontSize, 1, zona5Color);
+                DrawTextEx(font, "Zona 6: Outfeeder A", (Vector2){10, 10+fontSize*1}, fontSize, 1, zona6Color);
+                DrawTextEx(font, "Zona 7: Infeeder B", (Vector2){10, 10+fontSize*2}, fontSize, 1, zona7Color);
+                DrawTextEx(font, "Zona 8: Outfeeder B", (Vector2){10, 10+fontSize*3}, fontSize, 1, zona8Color);
+                DrawTextEx(font, "Zona 9: Casetero Pallet", (Vector2){10, 10+fontSize*4}, fontSize, 1, zona9Color);
+                DrawTextEx(font, "Zona 10: Casetero Cartón", (Vector2){10, 10+fontSize*5}, fontSize, 1, zona10Color);
+                DrawTextEx(font, "Zona 11: Zona Inicio", (Vector2){10, 10+fontSize*6}, fontSize, 1, zona11Color);
+                DrawTextEx(font, "Zona 12: Zona Aerea Casetero", (Vector2){10, 10+fontSize*7}, fontSize, 1, zona12Color);
+            }
 
         // End drawing
         EndDrawing();
