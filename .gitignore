@@ -39,7 +39,7 @@ build/*
 .cache/*
 
 # 3d models .zip files
-#src/mod/*
+src/mod/*
 
 # vscode
 .vscode
