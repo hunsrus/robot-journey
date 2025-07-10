@@ -665,13 +665,13 @@ int main() {
         EndDrawing();
     }
 
-    // Close the window and clean up resources
-    CloseWindow();
-
     UnloadModel(*robotModel);
     UnloadModel(*palletModel);
 
     UnloadShader(shader);
+
+    // Close the window and clean up resources
+    CloseWindow();
 
     return 0;
 }
