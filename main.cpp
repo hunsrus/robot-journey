@@ -3,6 +3,8 @@
 
 #include <raylib.h>
 #include <raymath.h>
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -228,8 +230,8 @@ Trajectory interpolateCircularSegment(
 
 int main() {
     // Initialize the window
-    const int screenWidth = 800;
-    const int screenHeight = 600;
+    const int screenWidth = 240;
+    const int screenHeight = 240;
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "aeea");
@@ -251,7 +253,7 @@ int main() {
     // SetCameraMode(camera, CAMERA_THIRD_PERSON);
 	// SetCameraMode(camera, CAMERA_ORBITAL);
     //  SetCameraMode(camera, CAMERA_CUSTOM);
-     SetCameraMode(camera, CAMERA_FREE);
+    //  SetCameraMode(camera, CAMERA_FREE);
 
     float modelScale = 1.0f;
     Model* robotModel = new Model(LoadModel(std::string("src/mod/PL190_PL320 ROBOT/PL190_PL320 ROBOT.obj").c_str()));
@@ -416,10 +418,13 @@ int main() {
     // selección de puntos
     Ray ray = { 0 };        // Picking ray
 
+    bool *btnWiredState = new bool(DRAW_WIRED);
+    btnWiredState = &DRAW_WIRED;
+
     // Main loop
     while (!WindowShouldClose()) {
         // Update logic here
-        UpdateCamera(&camera);
+        UpdateCamera(&camera, CAMERA_FREE);
         
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position.x, SHADER_UNIFORM_VEC3);
 
@@ -690,7 +695,10 @@ int main() {
 
             // NOTE: Render texture must be y-flipped due to default OpenGL coordinates (left-bottom)
             DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, (float)-target.texture.height }, (Vector2){ 0, 0 }, WHITE);
-        
+            
+            // DRAW_WIRED = GuiButton((Rectangle){ 10, 10, 120, 30 }, "Wired");
+            GuiToggle((Rectangle){ 10, 10, 120, 30 }, "Wired", btnWiredState);
+
             // std::string radiusText = "Radius: " + std::to_string(radius);
             // DrawText(radiusText.c_str(), 10, 10, 8, DARKGRAY);
             if(DRAW_ZONES){
