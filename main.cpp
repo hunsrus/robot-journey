@@ -9,6 +9,8 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
+#include <algorithm>
+#include <string>
 
 #include "YMConnect.h" // Include the YMConnect header file
 
@@ -228,10 +230,108 @@ Trajectory interpolateCircularSegment(
     return trajectory;
 }
 
+struct CubeZone {
+    int id;
+    std::string name;
+    float P1, P2, P3;
+    Vector3 maxCoords;
+    Vector3 minCoords;
+    Vector3 maxCoordsAux; // adaptadas a las coordenadas de raylib
+    Vector3 minCoordsAux; // adaptadas a las coordenadas de raylib
+    Vector3 position; // solo para graficos
+    Vector3 size; // solo para gráficos
+    Color color = COLOR_HL;
+};
+
+bool isZoneDefined(const CubeZone &z) {
+    bool allZero = (z.P1 == 0 && z.P2 == 0 && z.P3 == 0 &&
+                    z.maxCoords.x == 0 && z.maxCoords.y == 0 && z.maxCoords.z == 0 &&
+                    z.minCoords.x == 0 && z.minCoords.y == 0 && z.minCoords.z == 0);
+    bool hasName = !z.name.empty();
+    return hasName || !allZero; // Está definida si tiene nombre o valores diferentes de cero
+}
+
+std::vector<CubeZone> parseCubeFile(const std::string &filename) {
+    std::ifstream file(filename);
+    std::vector<CubeZone> zones;
+    std::string line;
+
+    if (!file.is_open()) {
+        std::cerr << "Error: no se pudo abrir el archivo " << filename << "\n";
+        return zones;
+    }
+
+    CubeZone zone;
+    int lineCounter = 0;
+    bool readingZone = false;
+
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+
+        // Detecta inicio de zona
+        if (line.rfind("//CUBEINTF", 0) == 0) {
+            if (readingZone && isZoneDefined(zone)) { 
+                zones.push_back(zone); 
+            }
+            readingZone = true;
+            lineCounter = 0;
+            zone = {}; // reiniciar zona
+
+            // Extrae ID
+            std::istringstream iss(line.substr(10));
+            iss >> zone.id;
+        }
+        else if (readingZone) {
+            lineCounter++;
+
+            switch (lineCounter) {
+                case 1: // Nombre
+                    if (line.rfind("///NAME", 0) == 0) {
+                        zone.name = line.substr(7);
+                        zone.name.erase(0, zone.name.find_first_not_of(" ")); // Quita espacios iniciales
+                    }
+                    break;
+                case 2: { // P1, P2, P3
+                    std::replace(line.begin(), line.end(), ',', ' ');
+                    std::istringstream iss(line);
+                    iss >> zone.P1 >> zone.P2 >> zone.P3;
+                    break;
+                }
+                case 3: { // Coordenadas máximas
+                    std::replace(line.begin(), line.end(), ',', ' ');
+                    std::istringstream iss(line);
+                    iss >> zone.maxCoords.x >> zone.maxCoords.y >> zone.maxCoords.z;
+                    break;
+                }
+                case 4: { // Coordenadas mínimas
+                    std::replace(line.begin(), line.end(), ',', ' ');
+                    std::istringstream iss(line);
+                    iss >> zone.minCoords.x >> zone.minCoords.y >> zone.minCoords.z;
+                    break;
+                }
+                case 7: // Fin de bloque útil
+                    if (isZoneDefined(zone)) { 
+                        zones.push_back(zone); 
+                    }
+                    readingZone = false;
+                    break;
+            }
+        }
+    }
+
+    // Guarda última zona si está definida
+    if (readingZone && isZoneDefined(zone)) {
+        zones.push_back(zone);
+    }
+
+    return zones;
+}
+
 int main() {
     // Initialize the window
-    const int screenWidth = 240;
-    const int screenHeight = 240;
+    const int screenWidth = 800;
+    const int screenHeight = 600;
+    float MARGIN = screenHeight/32.0f;
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "aeea");
@@ -256,16 +356,16 @@ int main() {
     //  SetCameraMode(camera, CAMERA_FREE);
 
     float modelScale = 1.0f;
-    Model* robotModel = new Model(LoadModel(std::string("src/mod/PL190_PL320 ROBOT/PL190_PL320 ROBOT.obj").c_str()));
-    robotModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
+    // Model* robotModel = new Model(LoadModel(std::string("src/mod/PL190_PL320 ROBOT/PL190_PL320 ROBOT.obj").c_str()));
+    // robotModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
     Model* palletModel = new Model(LoadModel(std::string("src/mod/pallet/pallet1000x1200.obj").c_str()));
     palletModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
 
-    robotModel->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
-    robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].color = WHITE;
-    robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].value = 0.0f;
-    robotModel->materials[0].maps[MATERIAL_MAP_SPECULAR].color = WHITE;
-    robotModel->materials[0].shader = shader;
+    // robotModel->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
+    // robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].color = WHITE;
+    // robotModel->materials[0].maps[MATERIAL_MAP_NORMAL].value = 0.0f;
+    // robotModel->materials[0].maps[MATERIAL_MAP_SPECULAR].color = WHITE;
+    // robotModel->materials[0].shader = shader;
     palletModel->materials[0].shader = shader;
 
     Light lights[MAX_LIGHTS] = { 0 };
@@ -277,98 +377,50 @@ int main() {
 
     float coordScale = 1.0f/1000.0f;
 
-    Vector3 zona5max = {1200,1000,2100};
-    Vector3 zona5min = {-350,-1600,1200};
-    Vector3 zona6max = {2500,1000,1900};
-    Vector3 zona6min = {1200,-1850,350};
-    Vector3 zona7max = {-1800,1000,2100};
-    Vector3 zona7min = {-350,700,600};
-    Vector3 zona8max = {2500,1000,100+250};
-    Vector3 zona8min = {1200,-1850,-1100};
-    Vector3 zona9max = {290,500,-1800};
-    Vector3 zona9min = {265,-1850,-2020};
-    Vector3 zona10max = {-980,500,-2050};
-    Vector3 zona10min = {-990,-1600,-2075};
-    Vector3 zona11max = {420,0,1950};
-    Vector3 zona11min = {200,-550,1700};
-    Vector3 zona12max = {2000,1000,-600};
-    Vector3 zona12min = {-1612,100,-2000};
+    // conexión al robot
+    StatusInfo status;
+    MotomanController* c = YMConnect::OpenConnection("192.168.23.15", status); // Open a connection to the robot controller
 
-    Color zona5Color = RED;
-    Color zona6Color = GREEN;
-    Color zona7Color = BROWN;
-    Color zona8Color = BLUE;
-    Color zona9Color = PINK;
-    Color zona10Color = GRAY;
-    Color zona11Color = YELLOW;
-    Color zona12Color = BLACK;
+    if (status.StatusCode != 0)
+    {
+        std::cout << status << std::endl;
+        return status.StatusCode;
+    }
 
-    zona5max = Vector3Scale(zona5max,coordScale);
-    zona5min = Vector3Scale(zona5min,coordScale);
-    zona6max = Vector3Scale(zona6max,coordScale);
-    zona6min = Vector3Scale(zona6min,coordScale);
-    zona7max = Vector3Scale(zona7max,coordScale);
-    zona7min = Vector3Scale(zona7min,coordScale);
-    zona8max = Vector3Scale(zona8max,coordScale);
-    zona8min = Vector3Scale(zona8min,coordScale);
-    zona9max = Vector3Scale(zona9max,coordScale);
-    zona9min = Vector3Scale(zona9min,coordScale);
-    zona10max = Vector3Scale(zona10max,coordScale);
-    zona10min = Vector3Scale(zona10min,coordScale);
-    zona11max = Vector3Scale(zona11max,coordScale);
-    zona11min = Vector3Scale(zona11min,coordScale);
-    zona12max = Vector3Scale(zona12max,coordScale);
-    zona12min = Vector3Scale(zona12min,coordScale);
+    status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
+    status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
 
-    float auxCoord;
-    
-    zona5min.x *= -1.0f;
-    zona5max.x *= -1.0f;
-    auxCoord = zona5max.x;
-    zona5max.x = zona5min.x;
-    zona5min.x = auxCoord;
+    auto zones = parseCubeFile("dat/CUBEINTF.CND");
 
-    zona6min.x *= -1.0f;
-    zona6max.x *= -1.0f;
-    auxCoord = zona6max.x;
-    zona6max.x = zona6min.x;
-    zona6min.x = auxCoord;
-    
-    zona7min.x *= -1.0f;
-    zona7max.x *= -1.0f;
-    auxCoord = zona7max.x;
-    zona7max.x = zona7min.x;
-    zona7min.x = auxCoord;
+    // Mostrar resultados
+    for (auto &z : zones) {
+        if(!z.name.empty())
+        {
+            std::cout << "Zona ID: " << z.id << "\n";
+            std::cout << "Nombre: " << z.name << "\n";
+            std::cout << "P1,P2,P3: " << z.P1 << ", " << z.P2 << ", " << z.P3 << "\n";
+            std::cout << "Max coords: " << z.maxCoords.x << ", " << z.maxCoords.y << ", " << z.maxCoords.z << "\n";
+            std::cout << "Min coords: " << z.minCoords.x << ", " << z.minCoords.y << ", " << z.minCoords.z << "\n";
+            std::cout << "-----------------------------------\n";
 
-    zona8min.x *= -1.0f;
-    zona8max.x *= -1.0f;
-    auxCoord = zona8max.x;
-    zona8max.x = zona8min.x;
-    zona8min.x = auxCoord;
+            z.maxCoordsAux.x = -z.minCoords.x;
+            z.minCoordsAux.x = -z.maxCoords.x;
+            z.maxCoordsAux.y = z.maxCoords.z;
+            z.minCoordsAux.y = z.minCoords.z;
+            z.maxCoordsAux.z = z.maxCoords.y;
+            z.minCoordsAux.z = z.minCoords.y;
+            z.minCoordsAux = Vector3Scale(z.minCoordsAux, coordScale/1000.0f);
+            z.maxCoordsAux = Vector3Scale(z.maxCoordsAux, coordScale/1000.0f);
 
-    zona9min.x *= -1.0f;
-    zona9max.x *= -1.0f;
-    auxCoord = zona9max.x;
-    zona9max.x = zona9min.x;
-    zona9min.x = auxCoord;
+            z.position = Vector3Add(z.minCoordsAux,Vector3Scale(Vector3Subtract(z.maxCoordsAux,z.minCoordsAux),0.5));
+            z.size = Vector3Subtract(z.maxCoordsAux,z.minCoordsAux);
+        }
+    }
 
-    zona10min.x *= -1.0f;
-    zona10max.x *= -1.0f;
-    auxCoord = zona10max.x;
-    zona10max.x = zona10min.x;
-    zona10min.x = auxCoord;
-
-    zona11min.x *= -1.0f;
-    zona11max.x *= -1.0f;
-    auxCoord = zona11max.x;
-    zona11max.x = zona11min.x;
-    zona11min.x = auxCoord;
-
-    zona12min.x *= -1.0f;
-    zona12max.x *= -1.0f;
-    auxCoord = zona12max.x;
-    zona12max.x = zona12min.x;
-    zona12min.x = auxCoord;
+    zones[0].color = RED;
+    zones[1].color = GREEN;
+    zones[2].color = BROWN;
+    zones[3].color = YELLOW;
 
     Point infeederA = { {219.0f, -1309.0f, 1915.0f}, {0.0f, 180.0f, 0.0f} };
     Point outfeederA = { {1756.0f, -1483.0f, 1235.0f}, {0.0f, 90.0f, 0.0f} };
@@ -418,8 +470,10 @@ int main() {
     // selección de puntos
     Ray ray = { 0 };        // Picking ray
 
+    // test de botones
     bool *btnWiredState = new bool(DRAW_WIRED);
     btnWiredState = &DRAW_WIRED;
+    bool *btnTransparencyState = new bool(false);
 
     // Main loop
     while (!WindowShouldClose()) {
@@ -527,25 +581,8 @@ int main() {
         }
 
         if(IsKeyPressed(KEY_T)){
-            if(zona5Color.a == 255)
-            {
-                zona5Color.a = 100;
-                zona6Color.a = 100;
-                zona7Color.a = 100;
-                zona8Color.a = 100;
-                zona9Color.a = 100;
-                zona10Color.a = 100;
-                zona11Color.a = 100;
-                zona12Color.a = 100;
-            }else{
-                zona5Color.a = 255;
-                zona6Color.a = 255;
-                zona7Color.a = 255;
-                zona8Color.a = 255;
-                zona9Color.a = 255;
-                zona10Color.a = 255;
-                zona11Color.a = 255;
-                zona12Color.a = 255;
+            for (auto &z : zones) {
+                z.color.a == 255 ? z.color.a = 100 : z.color.a = 255;
             }
         }
 
@@ -642,7 +679,7 @@ int main() {
                 if(DRAW_TRAJECTORIES)
                 {
                     BeginShaderMode(shader);
-                        DrawModel(*robotModel, Vector3Zero(), modelScale, WHITE);
+                        // DrawModel(*robotModel, Vector3Zero(), modelScale, WHITE);
                         DrawModel(*palletModel, outfeederA.position, modelScale, WHITE);
                         DrawModel(*palletModel, outfeederB.position, modelScale, WHITE);
                     EndShaderMode();
@@ -667,23 +704,13 @@ int main() {
                 {
                     if(DRAW_WIRED)
                     {
-                        DrawCubeWiresV(Vector3Add(zona5min,Vector3Scale(Vector3Subtract(zona5max,zona5min),0.5)),Vector3Subtract(zona5max,zona5min),zona5Color);
-                        DrawCubeWiresV(Vector3Add(zona6min,Vector3Scale(Vector3Subtract(zona6max,zona6min),0.5)),Vector3Subtract(zona6max,zona6min),zona6Color);
-                        DrawCubeWiresV(Vector3Add(zona7min,Vector3Scale(Vector3Subtract(zona7max,zona7min),0.5)),Vector3Subtract(zona7max,zona7min),zona7Color);
-                        DrawCubeWiresV(Vector3Add(zona8min,Vector3Scale(Vector3Subtract(zona8max,zona8min),0.5)),Vector3Subtract(zona8max,zona8min),zona8Color);
-                        DrawCubeWiresV(Vector3Add(zona9min,Vector3Scale(Vector3Subtract(zona9max,zona9min),0.5)),Vector3Subtract(zona9max,zona9min),zona9Color);
-                        DrawCubeWiresV(Vector3Add(zona10min,Vector3Scale(Vector3Subtract(zona10max,zona10min),0.5)),Vector3Subtract(zona10max,zona10min),zona10Color);
-                        DrawCubeWiresV(Vector3Add(zona11min,Vector3Scale(Vector3Subtract(zona11max,zona11min),0.5)),Vector3Subtract(zona11max,zona11min),zona11Color);
-                        DrawCubeWiresV(Vector3Add(zona12min,Vector3Scale(Vector3Subtract(zona12max,zona12min),0.5)),Vector3Subtract(zona12max,zona12min),zona12Color);
+                        for (auto &z : zones) {
+                            DrawCubeWiresV(z.position,z.size,z.color);
+                        }
                     }else{
-                        DrawCubeV(Vector3Add(zona5min,Vector3Scale(Vector3Subtract(zona5max,zona5min),0.5)),Vector3Subtract(zona5max,zona5min),zona5Color);
-                        DrawCubeV(Vector3Add(zona6min,Vector3Scale(Vector3Subtract(zona6max,zona6min),0.5)),Vector3Subtract(zona6max,zona6min),zona6Color);
-                        DrawCubeV(Vector3Add(zona7min,Vector3Scale(Vector3Subtract(zona7max,zona7min),0.5)),Vector3Subtract(zona7max,zona7min),zona7Color);
-                        DrawCubeV(Vector3Add(zona8min,Vector3Scale(Vector3Subtract(zona8max,zona8min),0.5)),Vector3Subtract(zona8max,zona8min),zona8Color);
-                        DrawCubeV(Vector3Add(zona9min,Vector3Scale(Vector3Subtract(zona9max,zona9min),0.5)),Vector3Subtract(zona9max,zona9min),zona9Color);
-                        DrawCubeV(Vector3Add(zona10min,Vector3Scale(Vector3Subtract(zona10max,zona10min),0.5)),Vector3Subtract(zona10max,zona10min),zona10Color);
-                        DrawCubeV(Vector3Add(zona11min,Vector3Scale(Vector3Subtract(zona11max,zona11min),0.5)),Vector3Subtract(zona11max,zona11min),zona11Color);
-                        DrawCubeV(Vector3Add(zona12min,Vector3Scale(Vector3Subtract(zona12max,zona12min),0.5)),Vector3Subtract(zona12max,zona12min),zona12Color);
+                        for (auto &z : zones) {
+                            DrawCubeV(z.position, z.size, z.color);
+                        }
                     }
                 }
             EndMode3D();
@@ -697,36 +724,33 @@ int main() {
             DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, (float)-target.texture.height }, (Vector2){ 0, 0 }, WHITE);
             
             // DRAW_WIRED = GuiButton((Rectangle){ 10, 10, 120, 30 }, "Wired");
-            GuiToggle((Rectangle){ 10, 10, 120, 30 }, "Wired", btnWiredState);
+            // GuiToggle((Rectangle){ 10, 10, 120, 30 }, "Wired", btnWiredState);
+            // GuiButton((Rectangle){ 10, 50, 120, 30 }, "Exportar Trayectoria");
 
             // std::string radiusText = "Radius: " + std::to_string(radius);
             // DrawText(radiusText.c_str(), 10, 10, 8, DARKGRAY);
             if(DRAW_ZONES){
-                DrawRectangleRoundedRadius((Rectangle){5,5,15*fontSize,15+fontSize*7+20}, fontSize/2.0f, 5, (Color{0,0,0,28}));
+                DrawRectangleRoundedRadius((Rectangle){MARGIN,MARGIN,10*fontSize,MARGIN*2+fontSize*zones.size()}, fontSize/2.0f, 5, (Color{0,0,0,28}));
                 // DrawRectangle(5,5,15*fontSize,10+fontSize*7+20,(Color{0,0,0,28}));
-                DrawTextEx(font, "Zona 5: Infeeder A", (Vector2){15, 10}, fontSize, 1, zona5Color);
-                DrawTextEx(font, "Zona 6: Outfeeder A", (Vector2){15, 10+fontSize*1}, fontSize, 1, zona6Color);
-                DrawTextEx(font, "Zona 7: Infeeder B", (Vector2){15, 10+fontSize*2}, fontSize, 1, zona7Color);
-                DrawTextEx(font, "Zona 8: Outfeeder B", (Vector2){15, 10+fontSize*3}, fontSize, 1, zona8Color);
-                DrawTextEx(font, "Zona 9: Casetero Pallet", (Vector2){15, 10+fontSize*4}, fontSize, 1, zona9Color);
-                DrawTextEx(font, "Zona 10: Casetero Cartón", (Vector2){15, 10+fontSize*5}, fontSize, 1, zona10Color);
-                DrawTextEx(font, "Zona 11: Zona Inicio", (Vector2){15, 10+fontSize*6}, fontSize, 1, zona11Color);
-                DrawTextEx(font, "Zona 12: Zona Aerea Casetero", (Vector2){15, 10+fontSize*7}, fontSize, 1, zona12Color);
+                for (auto &z : zones) {
+                    std::string zoneText = "Zona " + std::to_string(z.id) + ": " + z.name;
+                    DrawTextEx(font, zoneText.c_str(), (Vector2){MARGIN*2, MARGIN*2+fontSize*(z.id-1)}, fontSize, 1, z.color);
+                }
             }else{
                 // DrawTextEx(font, TextFormat("Hit Object: %s", hitObjectName), (Vector2){10, 10}, fontSize, 1, DARKGRAY);
-                DrawTextEx(font, "E: Exportar trayectoria", (Vector2){10, 10}, fontSize, 1, COLOR_FG);
-                DrawTextEx(font, "Z: Dibujar zonas", (Vector2){10, 10+fontSize*1}, fontSize, 1, COLOR_FG);
-                DrawTextEx(font, "W: Modo Wired", (Vector2){10, 10+fontSize*2}, fontSize, 1, COLOR_FG);
-                DrawTextEx(font, "T: Modo transparente", (Vector2){10, 10+fontSize*3}, fontSize, 1, COLOR_FG);
-                DrawTextEx(font, "Arr/Aba: Puntos", (Vector2){10, 10+fontSize*4}, fontSize, 1, COLOR_FG);
-                DrawTextEx(font, "Izq/Der: Radio", (Vector2){10, 10+fontSize*5}, fontSize, 1, COLOR_FG);
+                // DrawTextEx(font, "E: Exportar trayectoria", (Vector2){10, 10}, fontSize, 1, COLOR_FG);
+                // DrawTextEx(font, "Z: Dibujar zonas", (Vector2){10, 10+fontSize*1}, fontSize, 1, COLOR_FG);
+                // DrawTextEx(font, "W: Modo Wired", (Vector2){10, 10+fontSize*2}, fontSize, 1, COLOR_FG);
+                // DrawTextEx(font, "T: Modo transparente", (Vector2){10, 10+fontSize*3}, fontSize, 1, COLOR_FG);
+                // DrawTextEx(font, "Arr/Aba: Puntos", (Vector2){10, 10+fontSize*4}, fontSize, 1, COLOR_FG);
+                // DrawTextEx(font, "Izq/Der: Radio", (Vector2){10, 10+fontSize*5}, fontSize, 1, COLOR_FG);
             }
 
         // End drawing
         EndDrawing();
     }
 
-    UnloadModel(*robotModel);
+    // UnloadModel(*robotModel);
     UnloadModel(*palletModel);
 
     UnloadShader(shader);
