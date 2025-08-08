@@ -349,6 +349,7 @@ int main() {
     camera.fovy = 80.0f;
     camera.projection = CAMERA_PERSPECTIVE;
     float cameraAngle = 0.0f;
+    CameraMode cameraMode = CAMERA_FREE;
 
     // SetCameraMode(camera, CAMERA_THIRD_PERSON);
 	// SetCameraMode(camera, CAMERA_ORBITAL);
@@ -417,10 +418,10 @@ int main() {
         }
     }
 
-    zones[0].color = RED;
-    zones[1].color = GREEN;
-    zones[2].color = BROWN;
-    zones[3].color = YELLOW;
+    zones[0].color = GREEN;
+    zones[1].color = YELLOW;
+    zones[2].color = ORANGE;
+    zones[3].color = RED;
 
     Point infeederA = { {219.0f, -1309.0f, 1915.0f}, {0.0f, 180.0f, 0.0f} };
     Point outfeederA = { {1756.0f, -1483.0f, 1235.0f}, {0.0f, 90.0f, 0.0f} };
@@ -478,7 +479,7 @@ int main() {
     // Main loop
     while (!WindowShouldClose()) {
         // Update logic here
-        UpdateCamera(&camera, CAMERA_FREE);
+        UpdateCamera(&camera, cameraMode);
         
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position.x, SHADER_UNIFORM_VEC3);
 
@@ -487,6 +488,10 @@ int main() {
         // Actualiza shader de luz con la posicion de vista de la camara
         float cameraPos[3] = { camera.position.x, camera.position.y, camera.position.z };
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
+
+        if(IsKeyPressed(KEY_O)) {
+            cameraMode == CAMERA_FREE ? cameraMode = CAMERA_ORBITAL : cameraMode = CAMERA_FREE;
+        }
 
         if(IsKeyPressed(KEY_LEFT)) {
             radius += 0.05;
@@ -730,7 +735,7 @@ int main() {
             // std::string radiusText = "Radius: " + std::to_string(radius);
             // DrawText(radiusText.c_str(), 10, 10, 8, DARKGRAY);
             if(DRAW_ZONES){
-                DrawRectangleRoundedRadius((Rectangle){MARGIN,MARGIN,10*fontSize,MARGIN*2+fontSize*zones.size()}, fontSize/2.0f, 5, (Color{0,0,0,28}));
+                DrawRectangleRoundedRadius((Rectangle){MARGIN,MARGIN,15*fontSize,MARGIN*2+fontSize*zones.size()}, fontSize/2.0f, 5, (Color{0,0,0,28}));
                 // DrawRectangle(5,5,15*fontSize,10+fontSize*7+20,(Color{0,0,0,28}));
                 for (auto &z : zones) {
                     std::string zoneText = "Zona " + std::to_string(z.id) + ": " + z.name;
