@@ -32,6 +32,7 @@ static bool DRAW_WIRED = false;
 static bool DRAW_TRANSPARENT = false;
 static bool DRAW_TRAJECTORIES = false;
 static bool ROBOT_CONNECTED = false;
+static int CURRENT_AXIS_ID = 1;
 
 static Color COLOR_FG = {100,100,100,255};
 static Color COLOR_BG = {215,215,215,255};
@@ -50,7 +51,9 @@ Shader initShader(void);
 typedef struct Link
 {
     float length;
+    float angle = 0.0f;
     Vector3 origin;
+    Vector3 axis;
     Model* model;
     Link* parent = nullptr;
 }Link;
@@ -367,19 +370,22 @@ int main() {
     //  SetCameraMode(camera, CAMERA_FREE);
 
     float modelScale = 1.0f;
-    // Model* robotBaseModel = new Model(LoadModel(std::string("src/mot/motoman_gp12_support/meshes/visual/gp12_base_link.obj").c_str()));
-    // robotBaseModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
-    // Model* palletModel = new Model(LoadModel(std::string("src/mod/pallet/pallet1000x1200.obj").c_str()));
-    // palletModel->transform = MatrixRotate((Vector3){1,0,0},-90*DEG2RAD);
 
     Link robotLink[AXIS_NUMBER];
     robotLink[0].origin = (Vector3){0.0f, 0.0f, 0.0f};
-    robotLink[1].origin = (Vector3){0.0f, 0.450f, 0.0f};
+    robotLink[0].axis = (Vector3){0.0f, 0.0f, 1.0f};
+    robotLink[1].origin = (Vector3){0.0f, 0.0f, 0.450f};
+    robotLink[1].axis = (Vector3){0.0f, 0.0f, 1.0f};
     robotLink[2].origin = (Vector3){0.155f, 0.0f, 0.0f};
-    robotLink[3].origin = (Vector3){0.0f, 0.614f, 0.0f};
-    robotLink[4].origin = (Vector3){0.640f, 0.2f, 0.0f};
+    robotLink[2].axis = (Vector3){0.0f, 1.0f, 0.0f};
+    robotLink[3].origin = (Vector3){0.0f, 0.0f, 0.614f};
+    robotLink[3].axis = (Vector3){0.0f, 1.0f, 0.0f};
+    robotLink[4].origin = (Vector3){0.640f, 0.0f, 0.2f};
+    robotLink[4].axis = (Vector3){1.0f, 0.0f, 0.0f};
     robotLink[5].origin = (Vector3){0.0f, 0.0f, 0.0f};
+    robotLink[5].axis = (Vector3){0.0f, 1.0f, 0.0f};
     robotLink[6].origin = (Vector3){0.0f, 0.0f, 0.0f};
+    robotLink[6].axis = (Vector3){1.0f, 0.0f, 0.0f};
     
     for(int i = 0; i < AXIS_NUMBER; i++) {
         std::string objPath = "src/mot/motoman_gp12_support/meshes/visual/gp12_link_" + std::to_string(i) + ".obj";
@@ -391,21 +397,11 @@ int main() {
             robotLink[i].model->transform = robotLink[i].parent->model->transform;
         }else{
             robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){1,0,0},-90*DEG2RAD));
+            robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,1,0},180*DEG2RAD));
+            robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,0,1},30*DEG2RAD));
         }
         robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixTranslate(robotLink[i].origin.x,robotLink[i].origin.y,robotLink[i].origin.z));
     }
-    
-    for(int i = 0; i < AXIS_NUMBER; i++) {
-        robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,1,0},180*DEG2RAD));
-        robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,0,1},30*DEG2RAD));
-    }
-
-    // robotBaseModel->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
-    // robotBaseModel->materials[0].maps[MATERIAL_MAP_NORMAL].color = WHITE;
-    // robotBaseModel->materials[0].maps[MATERIAL_MAP_NORMAL].value = 0.0f;
-    // robotBaseModel->materials[0].maps[MATERIAL_MAP_SPECULAR].color = WHITE;
-    // robotBaseModel->materials[0].shader = shader;
-    // palletModel->materials[0].shader = shader;
 
     Light lights[MAX_LIGHTS] = { 0 };
     lights[0] = CreateLight(LIGHT_POINT, (Vector3){ 100, 100, 100 }, Vector3Zero(), WHITE, shader);
@@ -721,12 +717,45 @@ int main() {
             }
         }
 
+        if(IsKeyPressed(KEY_KP_ADD)) {
+            if(CURRENT_AXIS_ID < AXIS_NUMBER-1)
+                CURRENT_AXIS_ID++;
+            else
+                CURRENT_AXIS_ID = 1;
+        }
+
+        if(IsKeyPressed(KEY_KP_SUBTRACT)) {
+            if(CURRENT_AXIS_ID > 1)
+                CURRENT_AXIS_ID--;
+            else
+                CURRENT_AXIS_ID = AXIS_NUMBER-1;
+        }
+
+        if(IsKeyDown(KEY_K)) {
+            robotLink[CURRENT_AXIS_ID].angle += 0.2f;
+        }else if(IsKeyDown(KEY_J)) {
+            robotLink[CURRENT_AXIS_ID].angle -= 0.2f;
+        }
+
         BeginTextureMode(target);
             ClearBackground(COLOR_BG);
             BeginMode3D(camera);
                 DrawGrid(10, 1.0f);
                 BeginShaderMode(shader);
-                    for(int i = 0; i < AXIS_NUMBER; i++) {
+                    DrawModel(*robotLink[0].model, Vector3Zero(), modelScale, WHITE);
+                    for(int i = 1; i < AXIS_NUMBER; i++) {
+                        robotLink[i].model->transform = MatrixRotate(robotLink[i].axis,robotLink[i].angle*DEG2RAD);
+                        robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixTranslate(robotLink[i].origin.x,robotLink[i].origin.y,robotLink[i].origin.z));
+                        Vector3 auxTranslation;
+                        Quaternion auxRotation;
+                        Vector3 auxAxis;
+                        float auxAngle;
+                        Vector3 auxScale;
+                        MatrixDecompose(robotLink[i].parent->model->transform, &auxTranslation, &auxRotation, &auxScale);
+                        QuaternionToAxisAngle(auxRotation, &auxAxis, &auxAngle);
+                        robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate(auxAxis,auxAngle));
+                        robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixTranslate(auxTranslation.x,auxTranslation.y,auxTranslation.z));
+                        // robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixScale(auxScale.x,auxScale.y,auxScale.z));
                         DrawModel(*robotLink[i].model, Vector3Zero(), modelScale, WHITE);
                     }
                     // DrawModel(*palletModel, outfeederA.position, modelScale, WHITE);
