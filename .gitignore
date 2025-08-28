@@ -40,6 +40,7 @@ build/*
 
 # 3d models .zip files
 src/mod/*
+src/mot/*
 
 # vscode
 .vscode
