@@ -25,10 +25,13 @@
 
 #define FLT_MAX 340282346638528859811704183484516925440.0f     // Maximum value of a float, from bit pattern 01111111011111111111111111111111
 #define COORD_PRECISION 3
+#define AXIS_NUMBER 7
 
-static bool DRAW_ZONES = false;
+static bool DRAW_ZONES = true;
 static bool DRAW_WIRED = false;
+static bool DRAW_TRANSPARENT = false;
 static bool DRAW_TRAJECTORIES = false;
+static bool ROBOT_CONNECTED = false;
 
 static Color COLOR_FG = {100,100,100,255};
 static Color COLOR_BG = {215,215,215,255};
@@ -41,7 +44,6 @@ static Color COLOR_HL = {68, 125, 155,255};
 
 #include <rshapes.c>
 void DrawRectangleRoundedRadius(Rectangle rec, float radius, int segments, Color color);
-
 
 Shader initShader(void);
 
@@ -411,8 +413,13 @@ int main() {
 
     // Create a RenderTexture2D to be used for render to texture
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
+    Vector2 viewSize = {screenWidth*0.6, screenHeight*0.6};
+    Rectangle viewRectangle = {(float)target.texture.width/2-viewSize.x/2, (float)target.texture.height/2-viewSize.y/2, viewSize.x, -viewSize.y};
+    // Vector2 viewPos = { screenWidth-viewSize.x-MARGIN, MARGIN*2+fontSize};
+    Vector2 viewPos = { MARGIN, MARGIN};
 
     float coordScale = 1.0f/1000.0f;
+    std::vector<CubeZone> zones;
 
     // conexión al robot
     StatusInfo status;
@@ -423,8 +430,8 @@ int main() {
         std::cout << status << std::endl;
         // return status.StatusCode;
     }else{
-    status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
-    status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
+        status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
+        status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
 
         ROBOT_CONNECTED = true;
     }
@@ -432,35 +439,35 @@ int main() {
     zones = parseCubeFile("dat/CUBEINTF.CND");
 
     if(!zones.empty()) {
-    // Mostrar resultados
-    for (auto &z : zones) {
-        if(!z.name.empty())
-        {
-            std::cout << "Zona ID: " << z.id << "\n";
-            std::cout << "Nombre: " << z.name << "\n";
-            std::cout << "P1,P2,P3: " << z.P1 << ", " << z.P2 << ", " << z.P3 << "\n";
-            std::cout << "Max coords: " << z.maxCoords.x << ", " << z.maxCoords.y << ", " << z.maxCoords.z << "\n";
-            std::cout << "Min coords: " << z.minCoords.x << ", " << z.minCoords.y << ", " << z.minCoords.z << "\n";
-            std::cout << "-----------------------------------\n";
+        // Mostrar resultados
+        for (auto &z : zones) {
+            if(!z.name.empty())
+            {
+                std::cout << "Zona ID: " << z.id << "\n";
+                std::cout << "Nombre: " << z.name << "\n";
+                std::cout << "P1,P2,P3: " << z.P1 << ", " << z.P2 << ", " << z.P3 << "\n";
+                std::cout << "Max coords: " << z.maxCoords.x << ", " << z.maxCoords.y << ", " << z.maxCoords.z << "\n";
+                std::cout << "Min coords: " << z.minCoords.x << ", " << z.minCoords.y << ", " << z.minCoords.z << "\n";
+                std::cout << "-----------------------------------\n";
 
-            z.maxCoordsAux.x = -z.minCoords.x;
-            z.minCoordsAux.x = -z.maxCoords.x;
-            z.maxCoordsAux.y = z.maxCoords.z;
-            z.minCoordsAux.y = z.minCoords.z;
-            z.maxCoordsAux.z = z.maxCoords.y;
-            z.minCoordsAux.z = z.minCoords.y;
-            z.minCoordsAux = Vector3Scale(z.minCoordsAux, coordScale/1000.0f);
-            z.maxCoordsAux = Vector3Scale(z.maxCoordsAux, coordScale/1000.0f);
+                z.maxCoordsAux.x = -z.minCoords.x;
+                z.minCoordsAux.x = -z.maxCoords.x;
+                z.maxCoordsAux.y = z.maxCoords.z;
+                z.minCoordsAux.y = z.minCoords.z;
+                z.maxCoordsAux.z = z.maxCoords.y;
+                z.minCoordsAux.z = z.minCoords.y;
+                z.minCoordsAux = Vector3Scale(z.minCoordsAux, coordScale/1000.0f);
+                z.maxCoordsAux = Vector3Scale(z.maxCoordsAux, coordScale/1000.0f);
 
-            z.position = Vector3Add(z.minCoordsAux,Vector3Scale(Vector3Subtract(z.maxCoordsAux,z.minCoordsAux),0.5));
-            z.size = Vector3Subtract(z.maxCoordsAux,z.minCoordsAux);
+                z.position = Vector3Add(z.minCoordsAux,Vector3Scale(Vector3Subtract(z.maxCoordsAux,z.minCoordsAux),0.5));
+                z.size = Vector3Subtract(z.maxCoordsAux,z.minCoordsAux);
+            }
         }
-    }
 
-    zones[0].color = GREEN;
-    zones[1].color = YELLOW;
-    zones[2].color = ORANGE;
-    zones[3].color = RED;
+        zones[0].color = GREEN;
+        zones[1].color = YELLOW;
+        zones[2].color = ORANGE;
+        zones[3].color = RED;
 
     }
 
@@ -512,15 +519,12 @@ int main() {
     // selección de puntos
     Ray ray = { 0 };        // Picking ray
 
-    // test de botones
-    bool *btnWiredState = new bool(DRAW_WIRED);
-    btnWiredState = &DRAW_WIRED;
-    bool *btnTransparencyState = new bool(false);
-
     // Main loop
     while (!WindowShouldClose()) {
         // Update logic here
-        UpdateCamera(&camera, cameraMode);
+        if(IsMouseButtonDown(0)) {
+            UpdateCamera(&camera, cameraMode);
+        }
         
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position.x, SHADER_UNIFORM_VEC3);
 
@@ -626,16 +630,6 @@ int main() {
             );
         }
 
-        if(IsKeyPressed(KEY_T)){
-            for (auto &z : zones) {
-                z.color.a == 255 ? z.color.a = 100 : z.color.a = 255;
-            }
-        }
-
-        if(IsKeyPressed(KEY_Z)) DRAW_ZONES = !DRAW_ZONES;
-        if(IsKeyPressed(KEY_W)) DRAW_WIRED = !DRAW_WIRED;
-        if(IsKeyPressed(KEY_TAB)) DRAW_TRAJECTORIES = !DRAW_TRAJECTORIES;
-
         if(IsKeyPressed(KEY_E)) {
             std::ofstream output_file("dat/100-TRAYECTORIA.JBI");
     
@@ -717,20 +711,29 @@ int main() {
             }
         }
         
+        if(DRAW_TRANSPARENT){
+            for (auto &z : zones) {
+                z.color.a = 100;
+            }
+        }else{
+            for (auto &z : zones) {
+                z.color.a = 255;
+            }
+        }
 
         BeginTextureMode(target);
             ClearBackground(COLOR_BG);
             BeginMode3D(camera);
                 DrawGrid(10, 1.0f);
-                if(DRAW_TRAJECTORIES)
-                {
-                    BeginShaderMode(shader);
+                BeginShaderMode(shader);
                     for(int i = 0; i < AXIS_NUMBER; i++) {
                         DrawModel(*robotLink[i].model, Vector3Zero(), modelScale, WHITE);
                     }
                     // DrawModel(*palletModel, outfeederA.position, modelScale, WHITE);
                     // DrawModel(*palletModel, outfeederB.position, modelScale, WHITE);
-                    EndShaderMode();
+                EndShaderMode();
+                if(DRAW_TRAJECTORIES)
+                {
                     for (const auto& point : trajectoryOAIA.points) {
                         if(point.selected)
                             DrawSphere(point.position, 0.1f, COLOR_HL);
@@ -769,10 +772,13 @@ int main() {
         ClearBackground(RAYWHITE);
 
             // NOTE: Render texture must be y-flipped due to default OpenGL coordinates (left-bottom)
-            DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, (float)-target.texture.height }, (Vector2){ 0, 0 }, WHITE);
+             DrawTextureRec(target.texture, viewRectangle, viewPos, WHITE);
+            // DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, (float)-target.texture.height }, (Vector2){ 0, 0 }, WHITE);
             
-            // DRAW_WIRED = GuiButton((Rectangle){ 10, 10, 120, 30 }, "Wired");
-            // GuiToggle((Rectangle){ 10, 10, 120, 30 }, "Wired", btnWiredState);
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN, MARGIN*4, MARGIN*2 }, "Zonas", &DRAW_ZONES);
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*2+fontSize, MARGIN*4, MARGIN*2 }, "Wired", &DRAW_WIRED);
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*3+fontSize*2, MARGIN*4, MARGIN*2 }, "Transparente", &DRAW_TRANSPARENT);
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*4+fontSize*3, MARGIN*4, MARGIN*2 }, "Trayectorias", &DRAW_TRAJECTORIES);
             // GuiButton((Rectangle){ 10, 50, 120, 30 }, "Exportar Trayectoria");
 
             if(ROBOT_CONNECTED)
@@ -783,11 +789,16 @@ int main() {
             }
             
             if(DRAW_ZONES){
-                DrawRectangleRoundedRadius((Rectangle){MARGIN,MARGIN,15*fontSize,MARGIN*2+fontSize*zones.size()}, fontSize/2.0f, 5, (Color{0,0,0,28}));
+                DrawRectangleRoundedRadius((Rectangle){MARGIN,MARGIN+viewSize.y+MARGIN,15*fontSize,MARGIN*2+fontSize*zones.size()}, fontSize/2.0f, 5, (Color{0,0,0,28}));
                 // DrawRectangle(5,5,15*fontSize,10+fontSize*7+20,(Color{0,0,0,28}));
+                if(DRAW_TRANSPARENT){
+                    for (auto &z : zones) {
+                        z.color.a = 255;
+                    }
+                }
                 for (auto &z : zones) {
                     std::string zoneText = "Zona " + std::to_string(z.id) + ": " + z.name;
-                    DrawTextEx(font, zoneText.c_str(), (Vector2){MARGIN*2, MARGIN*2+fontSize*(z.id-1)}, fontSize, 1, z.color);
+                    DrawTextEx(font, zoneText.c_str(), (Vector2){MARGIN*2, MARGIN+viewSize.y+MARGIN*2+fontSize*(z.id-1)}, fontSize, 1, z.color);
                 }
             }else{
                 // DrawTextEx(font, TextFormat("Hit Object: %s", hitObjectName), (Vector2){10, 10}, fontSize, 1, DARKGRAY);
