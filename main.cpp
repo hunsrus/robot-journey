@@ -421,14 +421,17 @@ int main() {
     if (status.StatusCode != 0)
     {
         std::cout << status << std::endl;
-        return status.StatusCode;
-    }
-
+        // return status.StatusCode;
+    }else{
     status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
     status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
 
-    auto zones = parseCubeFile("dat/CUBEINTF.CND");
+        ROBOT_CONNECTED = true;
+    }
 
+    zones = parseCubeFile("dat/CUBEINTF.CND");
+
+    if(!zones.empty()) {
     // Mostrar resultados
     for (auto &z : zones) {
         if(!z.name.empty())
@@ -458,6 +461,8 @@ int main() {
     zones[1].color = YELLOW;
     zones[2].color = ORANGE;
     zones[3].color = RED;
+
+    }
 
     Point infeederA = { {219.0f, -1309.0f, 1915.0f}, {0.0f, 180.0f, 0.0f} };
     Point outfeederA = { {1756.0f, -1483.0f, 1235.0f}, {0.0f, 90.0f, 0.0f} };
@@ -770,8 +775,13 @@ int main() {
             // GuiToggle((Rectangle){ 10, 10, 120, 30 }, "Wired", btnWiredState);
             // GuiButton((Rectangle){ 10, 50, 120, 30 }, "Exportar Trayectoria");
 
-            // std::string radiusText = "Radius: " + std::to_string(radius);
-            // DrawText(radiusText.c_str(), 10, 10, 8, DARKGRAY);
+            if(ROBOT_CONNECTED)
+            {
+                DrawCircle(screenWidth-MARGIN-MARGIN*0.5,MARGIN+MARGIN,MARGIN*0.5,RED);
+            }else{
+                DrawCircle(screenWidth-MARGIN-MARGIN*0.5,MARGIN+MARGIN,MARGIN*0.5,GRAY);
+            }
+            
             if(DRAW_ZONES){
                 DrawRectangleRoundedRadius((Rectangle){MARGIN,MARGIN,15*fontSize,MARGIN*2+fontSize*zones.size()}, fontSize/2.0f, 5, (Color{0,0,0,28}));
                 // DrawRectangle(5,5,15*fontSize,10+fontSize*7+20,(Color{0,0,0,28}));
