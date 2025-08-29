@@ -25,7 +25,7 @@
 
 #define FLT_MAX 340282346638528859811704183484516925440.0f     // Maximum value of a float, from bit pattern 01111111011111111111111111111111
 #define COORD_PRECISION 3
-#define AXIS_NUMBER 7
+#define AXIS_NUMBER max_supported_axis
 
 static bool DRAW_ZONES = true;
 static bool DRAW_WIRED = false;
@@ -54,6 +54,7 @@ typedef struct Link
     float angle = 0.0f;
     Vector3 origin;
     Vector3 axis;
+    Matrix initialTransform = MatrixIdentity();
     Model* model;
     Link* parent = nullptr;
 }Link;
@@ -386,6 +387,8 @@ int main() {
     robotLink[5].axis = (Vector3){0.0f, 1.0f, 0.0f};
     robotLink[6].origin = (Vector3){0.0f, 0.0f, 0.0f};
     robotLink[6].axis = (Vector3){1.0f, 0.0f, 0.0f};
+    robotLink[7].origin = (Vector3){0.2f, 0.0f, 0.0f};
+    robotLink[7].axis = (Vector3){1.0f, 0.0f, 0.0f};
     
     for(int i = 0; i < AXIS_NUMBER; i++) {
         std::string objPath = "src/mot/motoman_gp12_support/meshes/visual/gp12_link_" + std::to_string(i) + ".obj";
@@ -400,8 +403,12 @@ int main() {
             robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,1,0},180*DEG2RAD));
             robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,0,1},30*DEG2RAD));
         }
-        robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixTranslate(robotLink[i].origin.x,robotLink[i].origin.y,robotLink[i].origin.z));
     }
+
+    robotLink[7].model = new Model(LoadModel("src/mod/tool/27121-CFR-G01X-01-0000-0.obj"));
+    robotLink[7].model->materials[0].maps[MATERIAL_MAP_DIFFUSE].color = WHITE;
+    robotLink[7].model->materials[0].shader = shader;
+    robotLink[7].initialTransform = MatrixRotate((Vector3){0,0,1},90*DEG2RAD);
 
     Light lights[MAX_LIGHTS] = { 0 };
     lights[0] = CreateLight(LIGHT_POINT, (Vector3){ 100, 100, 100 }, Vector3Zero(), WHITE, shader);
@@ -744,7 +751,7 @@ int main() {
                 BeginShaderMode(shader);
                     DrawModel(*robotLink[0].model, Vector3Zero(), modelScale, WHITE);
                     for(int i = 1; i < AXIS_NUMBER; i++) {
-                        robotLink[i].model->transform = MatrixRotate(robotLink[i].axis,robotLink[i].angle*DEG2RAD);
+                        robotLink[i].model->transform = MatrixMultiply(robotLink[i].initialTransform, MatrixRotate(robotLink[i].axis,robotLink[i].angle*DEG2RAD));
                         robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixTranslate(robotLink[i].origin.x,robotLink[i].origin.y,robotLink[i].origin.z));
                         Vector3 auxTranslation;
                         Quaternion auxRotation;
