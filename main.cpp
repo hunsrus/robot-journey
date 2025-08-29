@@ -33,6 +33,7 @@ static bool DRAW_TRANSPARENT = false;
 static bool DRAW_TRAJECTORIES = false;
 static bool CTRL_EXPORT = false;
 static bool ROBOT_CONNECTED = false;
+static bool CAMERA_VIEW_CTRL = false;
 static int CURRENT_AXIS_ID = 1;
 
 static Color COLOR_FG = {100,100,100,255};
@@ -365,6 +366,7 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
     float cameraAngle = 0.0f;
     CameraMode cameraMode = CAMERA_FREE;
+    Camera lastCameraState = camera;
 
     // SetCameraMode(camera, CAMERA_THIRD_PERSON);
 	// SetCameraMode(camera, CAMERA_ORBITAL);
@@ -416,7 +418,7 @@ int main() {
     lights[0].position = (Vector3){100.0f, 100.0f, 100.0f};
 
     // Create a RenderTexture2D to be used for render to texture
-    RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
+    RenderTexture2D target = LoadRenderTexture(screenWidth*0.6, screenHeight*0.6);
     Vector2 viewSize = {screenWidth*0.6, screenHeight*0.6};
     Rectangle viewRectangle = {(float)target.texture.width/2-viewSize.x/2, (float)target.texture.height/2-viewSize.y/2, viewSize.x, -viewSize.y};
     // Vector2 viewPos = { screenWidth-viewSize.x-MARGIN, MARGIN*2+fontSize};
@@ -539,9 +541,22 @@ int main() {
 
     // Main loop
     while (!WindowShouldClose()) {
-        // Update logic here
-        if(IsMouseButtonDown(0)) {
-            UpdateCamera(&camera, cameraMode);
+
+        UpdateCamera(&camera, cameraMode);
+
+        if(GetMouseX() > viewPos.x && GetMouseX() < viewPos.x+viewSize.x &&
+           GetMouseY() > viewPos.y && GetMouseY() < viewPos.y+viewSize.y &&
+           IsMouseButtonDown(0))
+        {
+            CAMERA_VIEW_CTRL = true;
+        }else {
+            CAMERA_VIEW_CTRL = false;
+        }
+
+        if(CAMERA_VIEW_CTRL) {
+            lastCameraState = camera;
+        }else {
+            camera = lastCameraState;
         }
         
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], &camera.position.x, SHADER_UNIFORM_VEC3);
@@ -705,7 +720,9 @@ int main() {
         collision.hit = false;
 
         // Get ray and test against objects
-        ray = GetMouseRay(GetMousePosition(), camera);
+        // Vector2 viewMousePos = Vector2Add(GetMousePosition(),viewPos);
+        // ray = GetMouseRay(GetMousePosition(), camera);
+        ray = GetScreenToWorldRayEx(Vector2Subtract(GetMousePosition(),(Vector2){viewPos.x,viewPos.y}), camera, viewSize.x, viewSize.y);
 
         for (auto& point : trajectoryOBIB.points) {
             // Check ray collision against points
@@ -825,7 +842,7 @@ int main() {
         ClearBackground(RAYWHITE);
 
             // NOTE: Render texture must be y-flipped due to default OpenGL coordinates (left-bottom)
-             DrawTextureRec(target.texture, viewRectangle, viewPos, WHITE);
+            DrawTextureRec(target.texture, viewRectangle, viewPos, WHITE);
             // DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, (float)-target.texture.height }, (Vector2){ 0, 0 }, WHITE);
             
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN, MARGIN*4, MARGIN*2 }, "Zonas", &DRAW_ZONES);
