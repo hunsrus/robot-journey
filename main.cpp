@@ -31,6 +31,7 @@ static bool DRAW_ZONES = true;
 static bool DRAW_WIRED = false;
 static bool DRAW_TRANSPARENT = false;
 static bool DRAW_TRAJECTORIES = false;
+static bool CTRL_EXPORT = false;
 static bool ROBOT_CONNECTED = false;
 static int CURRENT_AXIS_ID = 1;
 
@@ -436,6 +437,20 @@ int main() {
         status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
         status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
 
+        PositionData positionToConvert{};
+        PositionData convertedPosition{};
+        PositionData jointAnglePosition{};
+
+        positionToConvert.coordinateType = CoordinateType::RobotCoordinate;
+        positionToConvert.axisData = {0.0, -90.0, 90.0, 0.0, 90.0, 0.0, 0.0};
+
+        //Convert pulse to joint angle
+        status = c->Kinematics->ConvertPosition(ControlGroupId::R1, positionToConvert
+            , KinematicConversions::CartesianPosToJointAngle, jointAnglePosition);
+        std::cout << "\nPulse to joint angle.\n******************" << std::endl;
+        std::cout << status << std::endl;
+        std::cout << jointAnglePosition << std::endl;
+
         ROBOT_CONNECTED = true;
     }
 
@@ -480,13 +495,13 @@ int main() {
     Point outfeederB = { {1749.0f, -1474.0f, -536.0f}, {0.0f, 90.0f, 0.0f} };
 
     outfeederA.position.x *= -1.0f;
-    outfeederA.position = Vector3Scale(outfeederA.position, coordScale);
+    outfeederA.position = Vector3Scale(outfeederA.position, coordScale*0.5);
     outfeederB.position.x *= -1.0f;
-    outfeederB.position = Vector3Scale(outfeederB.position, coordScale);
+    outfeederB.position = Vector3Scale(outfeederB.position, coordScale*0.5);
     infeederA.position.x *= -1.0f;
-    infeederA.position = Vector3Scale(infeederA.position, coordScale);
+    infeederA.position = Vector3Scale(infeederA.position, coordScale*0.5);
     infeederB.position.x *= -1.0f;
-    infeederB.position = Vector3Scale(infeederB.position, coordScale);
+    infeederB.position = Vector3Scale(infeederB.position, coordScale*0.5);
 
     Vector3 offset = {0.0f, 1.0f, 0.0f};
     Point auxPoint;
@@ -633,7 +648,7 @@ int main() {
             );
         }
 
-        if(IsKeyPressed(KEY_E)) {
+        if(CTRL_EXPORT) {
             std::ofstream output_file("dat/100-TRAYECTORIA.JBI");
     
             if (!output_file.is_open()) {
@@ -651,7 +666,7 @@ int main() {
                             "///RECTAN" << "\n"
                             "///RCONF 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" << "\n";
             
-            pointCount = 200;
+            pointCount = 100;
             for (const auto& point : trajectoryOBIB.points) {
                 output_file << std::fixed << std::setprecision(COORD_PRECISION)
                             <<  "P" << pointCount << "="
@@ -671,7 +686,7 @@ int main() {
                             "SET I005 359" << "\n"
                             "SPEED VJ=I003 V=I004 VR=I005" << "\n";
 
-            pointCount = 200;
+            pointCount = 100;
             for (const auto& point : trajectoryOBIB.points) {
                 output_file << "MOVJ P" << pointCount << "\n";
                 pointCount++;
@@ -680,6 +695,8 @@ int main() {
             output_file <<  "END" << "\n" << "";
 
             output_file.close();
+
+            CTRL_EXPORT != false;
         }
 
          // Display information about closest hit
@@ -815,7 +832,7 @@ int main() {
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*2+fontSize, MARGIN*4, MARGIN*2 }, "Wired", &DRAW_WIRED);
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*3+fontSize*2, MARGIN*4, MARGIN*2 }, "Transparente", &DRAW_TRANSPARENT);
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*4+fontSize*3, MARGIN*4, MARGIN*2 }, "Trayectorias", &DRAW_TRAJECTORIES);
-            // GuiButton((Rectangle){ 10, 50, 120, 30 }, "Exportar Trayectoria");
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*5+fontSize*4, MARGIN*4, MARGIN*2 }, "Exportar", &CTRL_EXPORT);
 
             if(ROBOT_CONNECTED)
             {
