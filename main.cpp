@@ -32,6 +32,7 @@ static bool DRAW_WIRED = false;
 static bool DRAW_TRANSPARENT = false;
 static bool DRAW_TRAJECTORIES = false;
 static bool CTRL_EXPORT = false;
+static bool CTRL_GEN_STACK = false;
 static bool ROBOT_CONNECTED = false;
 static bool CAMERA_VIEW_CTRL = false;
 static int CURRENT_AXIS_ID = 1;
@@ -491,6 +492,8 @@ int main() {
 
     }
 
+    // -------------------- trayectorias --------------------
+
     Point infeederA = { {219.0f, -1309.0f, 1915.0f}, {0.0f, 180.0f, 0.0f} };
     Point outfeederA = { {1756.0f, -1483.0f, 1235.0f}, {0.0f, 90.0f, 0.0f} };
     Point infeederB = { {-1397.0f, 903.0f, 882.0f}, {0.0f, 0.0f, 0.0f} };
@@ -538,6 +541,14 @@ int main() {
 
     // selección de puntos
     Ray ray = { 0 };        // Picking ray
+
+    // -------------------- apilador/desapilador --------------------
+    Vector3 workRefPos = {500.0f, 0.0f, 1500.0f};
+    Vector3 productSize = {500.0f, 300.0f, 1000.0f};
+    float productSpacing = 100.0f;
+    unsigned int stackColumns = 2;
+    unsigned int columnID, rowID;
+    std::vector<Point> stackProducts;
 
     // Main loop
     while (!WindowShouldClose()) {
@@ -711,6 +722,53 @@ int main() {
 
             output_file.close();
 
+            output_file.open("dat/110-STACK.JBI");
+
+            if (!output_file.is_open()) {
+                std::cerr << "Error al abrir archivo para escritura: " << "dat/110-STACK.JBI" << std::endl;
+                return EXIT_FAILURE;
+            }
+
+            output_file <<  "/JOB" << "\n"
+                            "//NAME 110-STACK" << "\n"
+                            "///FOLDERNAME STACKING" << "\n"
+                            "//POS" << "\n"
+                            "///NPOS 0,0,0,46,0,0" << "\n"
+                            "///TOOL 1" << "\n"
+                            "///POSTYPE ROBOT" << "\n"
+                            "///RECTAN" << "\n"
+                            "///RCONF 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" << "\n";
+
+            pointCount = 100;
+            for (const auto& point : stackProducts) {
+                output_file << std::fixed << std::setprecision(COORD_PRECISION)
+                            <<  "P" << pointCount << "="
+                            << -point.position.x/coordScale << "," << point.position.z/coordScale << "," << point.position.y/coordScale << ","
+                            << point.rotation.x << "," << point.rotation.y << "," << point.rotation.z << "\n";
+                pointCount++;
+            }
+
+            output_file <<  "//INST" << "\n"
+                            "///DATE 2000/01/18 10:00" << "\n"
+                            "///ATTR SC,RW" << "\n"
+                            "///GROUP1 RB1" << "\n"
+                            "///LVARS 0,0,0,0,0,0,0,0" << "\n"
+                            "NOP" << "\n"
+                            "SET I013 10000" << "\n"
+                            "SET I014 30000" << "\n"
+                            "SET I015 359" << "\n"
+                            "SPEED VJ=I013 V=I014 VR=I015" << "\n";
+
+            pointCount = 100;
+            for (const auto& point : stackProducts) {
+                output_file << "MOVJ P" << pointCount << "\n";
+                pointCount++;
+            }
+
+            output_file <<  "END" << "\n" << "";
+
+            output_file.close();
+
             CTRL_EXPORT != false;
         }
 
@@ -778,6 +836,22 @@ int main() {
             robotLink[CURRENT_AXIS_ID].angle -= 0.2f;
         }
 
+        if(CTRL_GEN_STACK) {
+            for(int i = 0; i < 11; i++) {
+                columnID = i%stackColumns;
+                rowID = i/stackColumns;
+                auxPoint.position = Vector3Add(workRefPos, (Vector3){columnID*productSize.x+columnID*productSpacing, rowID*productSize.y, 0.0f});
+                auxPoint.position = Vector3Scale(auxPoint.position, coordScale);
+                auxPoint.rotation = (Vector3){-180.0f, 0.0f, 0.0f};
+                stackProducts.push_back(auxPoint);
+                // DrawCube(auxPoint.position, productSize.x*coordScale, productSize.y*coordScale, productSize.z*coordScale, COLOR_HL2);
+                // DrawSphere(p.position, 0.05f, COLOR_HL2);
+            }
+            CTRL_GEN_STACK = false;
+        }
+
+
+
         BeginTextureMode(target);
             ClearBackground(COLOR_BG);
             BeginMode3D(camera);
@@ -802,6 +876,16 @@ int main() {
                     // DrawModel(*palletModel, outfeederA.position, modelScale, WHITE);
                     // DrawModel(*palletModel, outfeederB.position, modelScale, WHITE);
                 EndShaderMode();
+                for (const auto& product : stackProducts) {
+                    if(DRAW_WIRED)
+                        DrawCubeWires(product.position, productSize.x*coordScale, productSize.y*coordScale, productSize.z*coordScale, COLOR_HL);
+                    else
+                        DrawCube(product.position, productSize.x*coordScale, productSize.y*coordScale, productSize.z*coordScale, COLOR_HL);
+                    float sphereRadius = 0.02f;
+                    auxPoint = product;
+                    auxPoint.position.y += productSize.y*coordScale-sphereRadius;
+                    DrawSphere(auxPoint.position, sphereRadius, COLOR_HL2);
+                }
                 if(DRAW_TRAJECTORIES)
                 {
                     for (const auto& point : trajectoryOAIA.points) {
@@ -822,16 +906,12 @@ int main() {
                     }
                 }
                 if(DRAW_ZONES)
-                {
-                    if(DRAW_WIRED)
                     {
                         for (auto &z : zones) {
+                        if(DRAW_WIRED)
                             DrawCubeWiresV(z.position,z.size,z.color);
-                        }
-                    }else{
-                        for (auto &z : zones) {
+                        else
                             DrawCubeV(z.position, z.size, z.color);
-                        }
                     }
                 }
             EndMode3D();
@@ -850,6 +930,7 @@ int main() {
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*3+fontSize*2, MARGIN*4, MARGIN*2 }, "Transparente", &DRAW_TRANSPARENT);
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*4+fontSize*3, MARGIN*4, MARGIN*2 }, "Trayectorias", &DRAW_TRAJECTORIES);
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*5+fontSize*4, MARGIN*4, MARGIN*2 }, "Exportar", &CTRL_EXPORT);
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*6+fontSize*5, MARGIN*4, MARGIN*2 }, "Stack", &CTRL_GEN_STACK);
 
             if(ROBOT_CONNECTED)
             {
