@@ -440,19 +440,29 @@ int main() {
         status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
         status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
 
-        PositionData positionToConvert{};
-        PositionData convertedPosition{};
-        PositionData jointAnglePosition{};
+        PositionData positionData{};
 
-        positionToConvert.coordinateType = CoordinateType::RobotCoordinate;
-        positionToConvert.axisData = {0.0, -90.0, 90.0, 0.0, 90.0, 0.0, 0.0};
-
-        //Convert pulse to joint angle
-        status = c->Kinematics->ConvertPosition(ControlGroupId::R1, positionToConvert
-            , KinematicConversions::CartesianPosToJointAngle, jointAnglePosition);
-        std::cout << "\nPulse to joint angle.\n******************" << std::endl;
+        status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
         std::cout << status << std::endl;
-        std::cout << jointAnglePosition << std::endl;
+        std::cout << positionData << std::endl;
+
+        for(int i = 1; i < AXIS_NUMBER; i++) {
+            robotLink[i].angle = positionData.axisData[i-1];
+        }
+
+        // PositionData positionToConvert{};
+        // PositionData convertedPosition{};
+        // PositionData jointAnglePosition{};
+
+        // positionToConvert.coordinateType = CoordinateType::RobotCoordinate;
+        // positionToConvert.axisData = {0.0, -90.0, 90.0, 0.0, 90.0, 0.0, 0.0};
+
+        // //Convert pulse to joint angle
+        // status = c->Kinematics->ConvertPosition(ControlGroupId::R1, positionToConvert
+        //     , KinematicConversions::CartesianPosToJointAngle, jointAnglePosition);
+        // std::cout << "\nPulse to joint angle.\n******************" << std::endl;
+        // std::cout << status << std::endl;
+        // std::cout << jointAnglePosition << std::endl;
 
         ROBOT_CONNECTED = true;
     }
@@ -470,6 +480,9 @@ int main() {
                 std::cout << "Max coords: " << z.maxCoords.x << ", " << z.maxCoords.y << ", " << z.maxCoords.z << "\n";
                 std::cout << "Min coords: " << z.minCoords.x << ", " << z.minCoords.y << ", " << z.minCoords.z << "\n";
                 std::cout << "-----------------------------------\n";
+
+                Vector3RotateByAxisAngle(z.maxCoordsAux, (Vector3){0.0f,0.0f,1.0f}, 30*DEG2RAD);
+                Vector3RotateByAxisAngle(z.minCoordsAux, (Vector3){0.0f,0.0f,1.0f}, 30*DEG2RAD);
 
                 z.maxCoordsAux.x = -z.minCoords.x;
                 z.minCoordsAux.x = -z.maxCoords.x;
@@ -850,7 +863,14 @@ int main() {
             CTRL_GEN_STACK = false;
         }
 
+        if(ROBOT_CONNECTED){
+            PositionData positionData{};
+            status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
 
+            for(int i = 1; i < AXIS_NUMBER; i++) {
+                robotLink[i].angle = positionData.axisData[i-1];
+            }
+        }
 
         BeginTextureMode(target);
             ClearBackground(COLOR_BG);
@@ -906,8 +926,8 @@ int main() {
                     }
                 }
                 if(DRAW_ZONES)
-                    {
-                        for (auto &z : zones) {
+                {
+                    for (auto &z : zones) {
                         if(DRAW_WIRED)
                             DrawCubeWiresV(z.position,z.size,z.color);
                         else
