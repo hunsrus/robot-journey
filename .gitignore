@@ -42,5 +42,8 @@ build/*
 src/mod/*
 src/mot/*
 
+# specific robot files
+dat/*
+
 # vscode
 .vscode
