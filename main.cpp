@@ -384,15 +384,15 @@ int main() {
     robotLink[2].origin = (Vector3){0.155f, 0.0f, 0.0f};
     robotLink[2].axis = (Vector3){0.0f, 1.0f, 0.0f};
     robotLink[3].origin = (Vector3){0.0f, 0.0f, 0.614f};
-    robotLink[3].axis = (Vector3){0.0f, 1.0f, 0.0f};
+    robotLink[3].axis = (Vector3){0.0f, -1.0f, 0.0f};
     robotLink[4].origin = (Vector3){0.640f, 0.0f, 0.2f};
-    robotLink[4].axis = (Vector3){1.0f, 0.0f, 0.0f};
+    robotLink[4].axis = (Vector3){-1.0f, 0.0f, 0.0f};
     robotLink[5].origin = (Vector3){0.0f, 0.0f, 0.0f};
-    robotLink[5].axis = (Vector3){0.0f, 1.0f, 0.0f};
+    robotLink[5].axis = (Vector3){0.0f, -1.0f, 0.0f};
     robotLink[6].origin = (Vector3){0.0f, 0.0f, 0.0f};
-    robotLink[6].axis = (Vector3){1.0f, 0.0f, 0.0f};
+    robotLink[6].axis = (Vector3){-1.0f, 0.0f, 0.0f};
     robotLink[7].origin = (Vector3){0.2f, 0.0f, 0.0f};
-    robotLink[7].axis = (Vector3){1.0f, 0.0f, 0.0f};
+    robotLink[7].axis = (Vector3){-1.0f, 0.0f, 0.0f};
     
     for(int i = 0; i < AXIS_NUMBER; i++) {
         std::string objPath = "src/mot/motoman_gp12_support/meshes/visual/gp12_link_" + std::to_string(i) + ".obj";
