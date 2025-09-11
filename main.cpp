@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <string>
 
+#include <thread>
+
 #include "YMConnect.h" // Include the YMConnect header file
 
 #include "rlights.h"
@@ -344,6 +346,57 @@ std::vector<CubeZone> parseCubeFile(const std::string &filename) {
     return zones;
 }
 
+static PositionData ROBOT_CURRENT_POSITION;
+
+int communicationManager(const char* ip)
+{
+    // conexión al robot
+    StatusInfo status;
+    MotomanController* c = YMConnect::OpenConnection(ip, status); // Open a connection to the robot controller
+
+    if (status.StatusCode != 0)
+    {
+        std::cout << status << std::endl;
+        // return status.StatusCode;
+    }else{
+        status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
+        status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
+
+        // PositionData positionData{};
+
+        // status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
+        // std::cout << status << std::endl;
+        // std::cout << positionData << std::endl;
+
+        // for(int i = 1; i < AXIS_NUMBER; i++) {
+        //     robotLink[i].angle = positionData.axisData[i-1];
+        // }
+
+        // PositionData positionToConvert{};
+        // PositionData convertedPosition{};
+        // PositionData jointAnglePosition{};
+
+        // positionToConvert.coordinateType = CoordinateType::RobotCoordinate;
+        // positionToConvert.axisData = {0.0, -90.0, 90.0, 0.0, 90.0, 0.0, 0.0};
+
+        // //Convert pulse to joint angle
+        // status = c->Kinematics->ConvertPosition(ControlGroupId::R1, positionToConvert
+        //     , KinematicConversions::CartesianPosToJointAngle, jointAnglePosition);
+        // std::cout << "\nPulse to joint angle.\n******************" << std::endl;
+        // std::cout << status << std::endl;
+        // std::cout << jointAnglePosition << std::endl;
+
+        ROBOT_CONNECTED = true;
+    }
+    while(!WindowShouldClose()){
+        if(ROBOT_CONNECTED){
+            status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, ROBOT_CURRENT_POSITION);
+        }
+    }
+
+    return EXIT_SUCCESS;
+}
+
 int main() {
     // Initialize the window
     const int screenWidth = 800;
@@ -426,46 +479,10 @@ int main() {
     Vector2 viewPos = { MARGIN, MARGIN};
 
     float coordScale = 1.0f/1000.0f;
+
+    std::thread comm_thread(communicationManager,"192.168.23.15");
+    
     std::vector<CubeZone> zones;
-
-    // conexión al robot
-    StatusInfo status;
-    MotomanController* c = YMConnect::OpenConnection("192.168.23.15", status); // Open a connection to the robot controller
-
-    if (status.StatusCode != 0)
-    {
-        std::cout << status << std::endl;
-        // return status.StatusCode;
-    }else{
-        status = c->Files->SaveFromControllerToFile("UFRAME.CND", "dat/UFRAME.CND", true);
-        status = c->Files->SaveFromControllerToFile("CUBEINTF.CND", "dat/CUBEINTF.CND", true);
-
-        PositionData positionData{};
-
-        status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
-        std::cout << status << std::endl;
-        std::cout << positionData << std::endl;
-
-        for(int i = 1; i < AXIS_NUMBER; i++) {
-            robotLink[i].angle = positionData.axisData[i-1];
-        }
-
-        // PositionData positionToConvert{};
-        // PositionData convertedPosition{};
-        // PositionData jointAnglePosition{};
-
-        // positionToConvert.coordinateType = CoordinateType::RobotCoordinate;
-        // positionToConvert.axisData = {0.0, -90.0, 90.0, 0.0, 90.0, 0.0, 0.0};
-
-        // //Convert pulse to joint angle
-        // status = c->Kinematics->ConvertPosition(ControlGroupId::R1, positionToConvert
-        //     , KinematicConversions::CartesianPosToJointAngle, jointAnglePosition);
-        // std::cout << "\nPulse to joint angle.\n******************" << std::endl;
-        // std::cout << status << std::endl;
-        // std::cout << jointAnglePosition << std::endl;
-
-        ROBOT_CONNECTED = true;
-    }
 
     zones = parseCubeFile("dat/CUBEINTF.CND");
 
@@ -864,11 +881,8 @@ int main() {
         }
 
         if(ROBOT_CONNECTED){
-            PositionData positionData{};
-            status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
-
             for(int i = 1; i < AXIS_NUMBER; i++) {
-                robotLink[i].angle = positionData.axisData[i-1];
+                robotLink[i].angle = ROBOT_CURRENT_POSITION.axisData[i-1];
             }
         }
 
@@ -980,6 +994,8 @@ int main() {
                 // DrawTextEx(font, "Arr/Aba: Puntos", (Vector2){10, 10+fontSize*4}, fontSize, 1, COLOR_FG);
                 // DrawTextEx(font, "Izq/Der: Radio", (Vector2){10, 10+fontSize*5}, fontSize, 1, COLOR_FG);
             }
+            
+            DrawFPS(10, screenHeight - 30);
 
         // End drawing
         EndDrawing();
@@ -991,6 +1007,12 @@ int main() {
     // UnloadModel(*palletModel);
 
     UnloadShader(shader);
+    
+    fprintf(stdout, "[INFO] THREAD: Joining communications thread...");
+    fflush(stdout);
+	while(!comm_thread.joinable()){}
+	comm_thread.join();
+	fprintf(stdout, " Done.\n");
 
     // Close the window and clean up resources
     CloseWindow();
