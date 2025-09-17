@@ -390,7 +390,11 @@ int communicationManager(const char* ip)
     }
     while(!WindowShouldClose()){
         if(ROBOT_CONNECTED){
-            status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, ROBOT_CURRENT_POSITION);
+            status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
+            // std::cout << status << std::endl;
+            // std::cout << ROBOT_CURRENT_POSITION << std::endl;
+
+            ROBOT_CURRENT_POSITION = positionData;
         }
     }
 
