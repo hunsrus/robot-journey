@@ -35,12 +35,14 @@ static bool DRAW_TRANSPARENT = false;
 static bool DRAW_TRAJECTORIES = false;
 static bool CTRL_EXPORT = false;
 static bool CTRL_GEN_STACK = false;
+static bool CTRL_GEN_FRAMES = false;
 static bool ROBOT_CONNECTED = false;
 static bool CAMERA_VIEW_CTRL = false;
 static int CURRENT_AXIS_ID = 1;
 
 static Color COLOR_FG = {100,100,100,255};
 static Color COLOR_BG = {215,215,215,255};
+// static Color COLOR_BG = {192,192,192,255};
 static Color COLOR_HL2 = {254, 119, 67,255};
 static Color COLOR_HL = {68, 125, 155,255};
 // static Color COLOR_FG = {102,155,188,255};
@@ -388,6 +390,9 @@ int communicationManager(const char* ip)
 
         ROBOT_CONNECTED = true;
     }
+    
+    PositionData positionData{};
+
     while(!WindowShouldClose()){
         if(ROBOT_CONNECTED){
             status = c->ControlGroup->ReadPositionData(ControlGroupId::R1, CoordinateType::JointDegrees, 0, 0, positionData);
@@ -420,7 +425,8 @@ int main() {
     SetTargetFPS(60);
 
     Camera camera = { {0.0f, 4.0f, 5.0f}, Vector3Zero(), { 0.0f, 1.0f, 0.0f }, 45.0f, 0 };
-    camera.fovy = 80.0f;
+    // Camera camera = { {1.3f, 0.4f, 1.2f}, { 1.3f, 0.4f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 45.0f, 0 };
+    camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
     float cameraAngle = 0.0f;
     CameraMode cameraMode = CAMERA_FREE;
@@ -477,7 +483,9 @@ int main() {
 
     // Create a RenderTexture2D to be used for render to texture
     RenderTexture2D target = LoadRenderTexture(screenWidth*0.6, screenHeight*0.6);
+    // RenderTexture2D target = LoadRenderTexture(320, 320);
     Vector2 viewSize = {screenWidth*0.6, screenHeight*0.6};
+    // Vector2 viewSize = {320, 320};
     Rectangle viewRectangle = {(float)target.texture.width/2-viewSize.x/2, (float)target.texture.height/2-viewSize.y/2, viewSize.x, -viewSize.y};
     // Vector2 viewPos = { screenWidth-viewSize.x-MARGIN, MARGIN*2+fontSize};
     Vector2 viewPos = { MARGIN, MARGIN};
@@ -584,6 +592,10 @@ int main() {
     unsigned int columnID, rowID;
     std::vector<Point> stackProducts;
 
+    // export frames
+    unsigned int total_frames = 25;
+    unsigned int frame_count = total_frames;
+
     // Main loop
     while (!WindowShouldClose()) {
 
@@ -591,7 +603,7 @@ int main() {
 
         if(GetMouseX() > viewPos.x && GetMouseX() < viewPos.x+viewSize.x &&
            GetMouseY() > viewPos.y && GetMouseY() < viewPos.y+viewSize.y &&
-           IsMouseButtonDown(0))
+           IsMouseButtonDown(0) || (frame_count < total_frames))
         {
             CAMERA_VIEW_CTRL = true;
         }else {
@@ -884,6 +896,14 @@ int main() {
             CTRL_GEN_STACK = false;
         }
 
+        if(CTRL_GEN_FRAMES)
+        {
+            SetTargetFPS(10);
+            cameraMode = CAMERA_ORBITAL;
+            frame_count = 0;
+            CTRL_GEN_FRAMES = false;
+        }
+
         if(ROBOT_CONNECTED){
             for(int i = 1; i < AXIS_NUMBER; i++) {
                 robotLink[i].angle = ROBOT_CURRENT_POSITION.axisData[i-1];
@@ -952,6 +972,64 @@ int main() {
                             DrawCubeV(z.position, z.size, z.color);
                     }
                 }
+
+
+                // dibujo cajas
+                // Vector3 auxPos = {1.0f, 0.0f, 0.0f};
+                // Vector3 auxSize = {0.1f, 0.05f, 0.1f};
+                // DrawCubeV(auxPos, auxSize, BEIGE);
+                // DrawCubeWiresV(auxPos, Vector3Scale(auxSize, 1.01f), GREEN);
+                // auxPos.x += 0.12f;
+                // DrawCubeV(auxPos, auxSize, BEIGE);
+                // DrawCubeWiresV(auxPos, Vector3Scale(auxSize, 1.01f), GREEN);
+                // auxPos.x += 0.15f;
+                // DrawCubeV(auxPos, auxSize, BEIGE);
+                // DrawCubeWiresV(auxPos, Vector3Scale(auxSize, 1.01f), GREEN);
+                // auxPos.x += 0.12f;
+                // DrawCubeV(auxPos, auxSize, BEIGE);
+                // DrawCubeWiresV(auxPos, Vector3Scale(auxSize, 1.01f), GREEN);
+
+                // dibujo approach
+                // auxPos = {1.12f, 0.05f, 0.0f};
+                // Vector3 auxpos2 = Vector3Add(auxPos,(Vector3){0.0f,0.2f,0.0f});
+                // DrawCylinderEx(auxPos, auxpos2, 0.01f, 0.01f, 10, BLACK);
+                // DrawCylinderEx(auxPos, Vector3Add(auxPos,(Vector3){0.0f,0.1f,0.0f}), 0.01f, 0.03f, 10, BLACK);
+                // DrawLine3D(Vector3Add(auxPos,(Vector3){0.2f,0.0f,0.0f}), Vector3Add(auxpos2,(Vector3){0.2f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.25f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.0f,0.35f,0.0f}), BLACK);
+                // DrawLine3D(Vector3Add(auxpos2,(Vector3){0.0f,0.3f,0.0f}), Vector3Add(auxpos2,(Vector3){0.1f,0.3f,0.0f}), BLACK);
+                // auxPos = auxpos2;
+                // auxpos2 = Vector3Add(auxPos,(Vector3){0.1f,0.1f,0.0f});
+                // DrawCylinderEx(auxPos, auxpos2, 0.01f, 0.01f, 10, BLACK);
+                // DrawCylinderEx(auxPos, Vector3Add(auxPos,(Vector3){0.05f,0.05f,0.0f}), 0.01f, 0.03f, 10, BLACK);
+                // DrawLine3D(Vector3Add(auxPos,(Vector3){0.3f,-0.25f,0.0f}), Vector3Add(auxpos2,(Vector3){0.2f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.25f,0.0f,0.0f}), BLACK);
+                // auxPos = auxpos2;
+                // auxpos2 = Vector3Add(auxPos,(Vector3){0.0f,0.2f,0.0f});
+                // DrawCylinderEx(auxPos, auxpos2, 0.01f, 0.01f, 10, BLACK);
+                // DrawCylinderEx(auxPos, Vector3Add(auxPos,(Vector3){0.0f,0.1f,0.0f}), 0.01f, 0.03f, 10, BLACK);
+                // DrawLine3D(Vector3Add(auxPos,(Vector3){0.3f,-0.35f,0.0f}), Vector3Add(auxpos2,(Vector3){0.3f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.35f,0.0f,0.0f}), BLACK);
+                // auxPos = auxpos2;
+                // auxpos2 = Vector3Add(auxPos,(Vector3){0.0f,0.2f,0.0f});
+                // DrawCylinderEx(auxPos, auxpos2, 0.01f, 0.01f, 10, BLACK);
+                // DrawCylinderEx(auxPos, Vector3Add(auxPos,(Vector3){0.0f,0.1f,0.0f}), 0.01f, 0.03f, 10, BLACK);
+                // DrawLine3D(Vector3Add(auxPos,(Vector3){0.4f,-0.55f,0.0f}), Vector3Add(auxpos2,(Vector3){0.4f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.45f,0.0f,0.0f}), BLACK);
+                
+                // auxPos = {1.12f, 0.05f, 0.0f};
+                // Vector3 auxpos2 = Vector3Add(auxPos,(Vector3){0.0f,0.2f,0.0f});
+                // DrawCylinderEx(auxPos, auxpos2, 0.01f, 0.01f, 10, BLACK);
+                // DrawCylinderEx(auxpos2, Vector3Add(auxpos2,(Vector3){0.0f,-0.1f,0.0f}), 0.01f, 0.03f, 10, BLACK);
+                // DrawLine3D(Vector3Add(auxPos,(Vector3){0.2f,-0.05f,0.0f}), Vector3Add(auxpos2,(Vector3){0.2f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.25f,0.0f,0.0f}), BLACK);
+                // auxPos = auxpos2;
+                // auxpos2 = Vector3Add(auxPos,(Vector3){0.0f,0.2f,0.0f});
+                // DrawCylinderEx(auxPos, auxpos2, 0.01f, 0.01f, 10, BLACK);
+                // DrawCylinderEx(auxpos2, Vector3Add(auxpos2,(Vector3){0.0f,-0.1f,0.0f}), 0.01f, 0.03f, 10, BLACK);
+                // DrawLine3D(Vector3Add(auxPos,(Vector3){0.3f,-0.25f,0.0f}), Vector3Add(auxpos2,(Vector3){0.3f,0.0f,0.0f}), BLACK);
+                // DrawLine3D(auxpos2, Vector3Add(auxpos2,(Vector3){0.35f,0.0f,0.0f}), BLACK);
+
             EndMode3D();
         EndTextureMode();
         
@@ -969,6 +1047,7 @@ int main() {
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*4+fontSize*3, MARGIN*4, MARGIN*2 }, "Trayectorias", &DRAW_TRAJECTORIES);
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*5+fontSize*4, MARGIN*4, MARGIN*2 }, "Exportar", &CTRL_EXPORT);
             GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*6+fontSize*5, MARGIN*4, MARGIN*2 }, "Stack", &CTRL_GEN_STACK);
+            GuiToggle((Rectangle){ MARGIN+viewSize.x+MARGIN, MARGIN*7+fontSize*6, MARGIN*4, MARGIN*2 }, "Gen Frames", &CTRL_GEN_FRAMES);
 
             if(ROBOT_CONNECTED)
             {
@@ -998,11 +1077,32 @@ int main() {
                 // DrawTextEx(font, "Arr/Aba: Puntos", (Vector2){10, 10+fontSize*4}, fontSize, 1, COLOR_FG);
                 // DrawTextEx(font, "Izq/Der: Radio", (Vector2){10, 10+fontSize*5}, fontSize, 1, COLOR_FG);
             }
+
+            // DrawTextEx(font, "e", (Vector2){viewPos.x+110, viewPos.y+80}, fontSize, 1, BLACK);
+            // DrawTextEx(font, "d", (Vector2){viewPos.x+175, viewPos.y+230}, fontSize, 1, BLACK);
+            // DrawTextEx(font, "c", (Vector2){viewPos.x+175+30, viewPos.y+230-20}, fontSize, 1, BLACK);
+            // DrawTextEx(font, "b", (Vector2){viewPos.x+175+30*2, viewPos.y+230-20*2}, fontSize, 1, BLACK);
+            // DrawTextEx(font, "a", (Vector2){viewPos.x+175+30*3, viewPos.y+230-20*3}, fontSize, 1, BLACK);
+
+            // DrawTextEx(font, "f", (Vector2){viewPos.x+175, viewPos.y+230}, fontSize, 1, BLACK);
+            // DrawTextEx(font, "g", (Vector2){viewPos.x+175+30, viewPos.y+230-20}, fontSize, 1, BLACK);
             
             DrawFPS(10, screenHeight - 30);
 
         // End drawing
         EndDrawing();
+        
+        // if(frame_count < total_frames)
+        // {
+        //     std::string frame_name = "dat/frame_" + std::to_string(frame_count) + ".png";
+        //     Image flippedFrame = LoadImageFromTexture(target.texture);
+        //     ImageRotate(&flippedFrame, 180);
+        //     ExportImage(flippedFrame, frame_name.c_str());
+        //     frame_count++;
+        // }else{
+        //     cameraMode = CAMERA_FREE;
+        //     SetTargetFPS(60);
+        // }
     }
 
     for(int i = 0; i < AXIS_NUMBER; i++) {
