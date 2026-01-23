@@ -29,6 +29,10 @@
 #define COORD_PRECISION 3
 #define AXIS_NUMBER max_supported_axis
 
+static double BASE_RX = 0;
+static double BASE_RY = 30;
+static double BASE_RZ = 0;
+
 static bool DRAW_ZONES = true;
 static bool DRAW_WIRED = false;
 static bool DRAW_TRANSPARENT = false;
@@ -468,7 +472,7 @@ int main() {
         }else{
             robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){1,0,0},-90*DEG2RAD));
             robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,1,0},180*DEG2RAD));
-            robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,0,1},30*DEG2RAD));
+            robotLink[i].model->transform = MatrixMultiply(robotLink[i].model->transform, MatrixRotate((Vector3){0,0,1},BASE_RY*DEG2RAD));
         }
     }
 
@@ -510,19 +514,21 @@ int main() {
                 std::cout << "Min coords: " << z.minCoords.x << ", " << z.minCoords.y << ", " << z.minCoords.z << "\n";
                 std::cout << "-----------------------------------\n";
 
-                Vector3RotateByAxisAngle(z.maxCoordsAux, (Vector3){0.0f,0.0f,1.0f}, 30*DEG2RAD);
-                Vector3RotateByAxisAngle(z.minCoordsAux, (Vector3){0.0f,0.0f,1.0f}, 30*DEG2RAD);
-
                 z.maxCoordsAux.x = -z.minCoords.x;
                 z.minCoordsAux.x = -z.maxCoords.x;
                 z.maxCoordsAux.y = z.maxCoords.z;
                 z.minCoordsAux.y = z.minCoords.z;
                 z.maxCoordsAux.z = z.maxCoords.y;
                 z.minCoordsAux.z = z.minCoords.y;
+
+                // z.maxCoordsAux = Vector3RotateByAxisAngle(z.maxCoordsAux, (Vector3){0.0f,0.0f,1.0f}, -30*DEG2RAD);
+                // z.minCoordsAux = Vector3RotateByAxisAngle(z.minCoordsAux, (Vector3){0.0f,0.0f,1.0f}, -30*DEG2RAD);
+                
                 z.minCoordsAux = Vector3Scale(z.minCoordsAux, coordScale/1000.0f);
                 z.maxCoordsAux = Vector3Scale(z.maxCoordsAux, coordScale/1000.0f);
 
                 z.position = Vector3Add(z.minCoordsAux,Vector3Scale(Vector3Subtract(z.maxCoordsAux,z.minCoordsAux),0.5));
+                z.position = Vector3RotateByAxisAngle(z.position, (Vector3){0.0f,0.0f,1.0f}, -BASE_RY*DEG2RAD);
                 z.size = Vector3Subtract(z.maxCoordsAux,z.minCoordsAux);
             }
         }
